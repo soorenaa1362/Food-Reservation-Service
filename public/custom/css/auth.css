@@ -1,0 +1,71 @@
+/* custom-auth.css */
+/* body {
+    background: url('../img/food-bg.jpg') no-repeat center center fixed;
+    background-size: cover;
+    font-family: 'Vazir', sans-serif;
+} */
+
+.auth-card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    transition: transform 0.3s ease;
+}
+
+.auth-card:hover {
+    transform: translateY(-5px);
+}
+
+.text-food-orange {
+    color: #e67e22 !important;
+}
+
+.bg-food-orange {
+    background-color: #e67e22 !important;
+}
+
+.btn-food-orange {
+    background-color: #e67e22;
+    border-color: #e67e22;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn-food-orange:hover {
+    background-color: #d35400;
+    transform: scale(1.05);
+}
+
+.input-group-text {
+    border-radius: 0 10px 10px 0;
+}
+
+.form-control {
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    padding: 12px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #e67e22;
+    box-shadow: 0 0 8px rgba(230, 126, 34, 0.3);
+}
+
+.alert {
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 14px;
+}
+
+.input-group-text i {
+    font-size: 24px;
+}
+
+@media (max-width: 576px) {
+    .width-400 {
+        width: 90% !important;
+    }
+}

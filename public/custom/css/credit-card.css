@@ -1,0 +1,23 @@
+.amount-box {
+    background: #f3f3f3;
+    padding: 10px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: 0.2s;
+    border: 2px solid transparent;
+}
+
+.amount-box:hover, .amount-box.active {
+    background: #ff7f00;
+    color: white;
+    border-color: #e66a00;
+}
+
+.amount-box.active,
+.amount-box.bg-success {
+    background: #28a745 !important;
+    color: white !important;
+    border-color: #28a745 !important;
+}
