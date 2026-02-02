@@ -6,14 +6,19 @@ use App\Models\ReservationItem;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use App\Services\CreditCard\CreditCardService;
+use App\Services\Transaction\TransactionService;
 
 class DashboardController extends Controller
 {
     protected CreditCardService $creditCardService;
 
-    public function __construct(CreditCardService $creditCardService)
+    public function __construct(
+        CreditCardService $creditCardService,
+        TransactionService $transactionService
+    )
     {
         $this->creditCardService = $creditCardService;
+        $this->transactionService = $transactionService;
     }
 
     public function index()
@@ -55,10 +60,13 @@ class DashboardController extends Controller
             ];
         })->sortKeysDesc();
 
+        $transactions = $this->transactionService->getAllCenterTransactions($userId, $centerId);        
+
         return view('user.dashboard.dashboard', compact([
             'selectedCenter',
             'creditCard',
-            'groupedItems'    
+            'groupedItems',
+            'transactions'
         ]));
     }
 }

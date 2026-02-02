@@ -24,7 +24,7 @@
             <li class="{{ request()->route('user.credit-card.index') ? 'active' : '' }}">
                 <a href="{{ route('user.credit-card.index') }}">
                     <i class="icon-credit-card font-medium-4"></i>
-                    <span class="menu-title">وضعیت کارت</span>
+                    <span class="menu-title">وضعیت کارت اعتباری</span>
                 </a>
             </li>
         </ul>

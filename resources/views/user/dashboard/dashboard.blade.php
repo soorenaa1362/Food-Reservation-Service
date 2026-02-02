@@ -12,7 +12,7 @@
     <div class="row d-flex justify-content-center">
 
         <div class="col-lg-5 col-md-5 col-11">
-            <div class="card">
+            <div class="card px-3 py-2 box-shadow-3">
                 <div class="card-header">
                     <h4 class="text-center mb-0">اطلاعات کاربری شما</h4>
                 </div>
@@ -87,82 +87,146 @@
         </div>
 
         <div class="col-lg-11 col-md-11 col-11">
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title-wrap bar-success d-flex justify-content-between">
-                    <h4 class="card-title mb-0">لیست رزرو ها</h4>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title-wrap bar-success d-flex justify-content-between">
+                        <h4 class="card-title mb-0">لیست رزرو ها</h4>
+                    </div>
                 </div>
-            </div>
 
-            <div class="card-body collapse show">
-                <div class="card-block card-dashboard">
-                    <table class="table table-striped table-bordered base-style text-center">
-                        <thead>
-                            <tr>                                
-                                <th>تاریخ</th>
-                                <th>صبحانه</th>
-                                <th>ناهار</th>
-                                <th>شام</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($groupedItems as $date => $day)
-                                <tr>
-                                    <!-- تاریخ -->
-                                    <td>
-                                        {{ \Morilog\Jalali\Jalalian::fromDateTime($date)->format('Y/m/d') }}
-                                        <br>
-                                        <small class="text-muted">
-                                            {{ \Morilog\Jalali\Jalalian::fromDateTime($date)->format('l') }}
-                                        </small>
-                                    </td>                               
-
-                                    <!-- صبحانه -->
-                                    <td>
-                                        @if ($day['breakfast']->count())
-                                            @foreach($day['breakfast'] as $item)
-                                                {{ $item->food_name }}  [ {{ $item->quantity }} پرس ] <br>
-                                            @endforeach
-                                        @else
-                                            <span class="text-muted">——</span>
-                                        @endif
-                                    </td>
-
-                                    <!-- ناهار -->
-                                    <td>
-                                        @if ($day['lunch']->count())
-                                            @foreach($day['lunch'] as $item)
-                                                {{ $item->food_name }}  [ {{ $item->quantity }} پرس ] <br>
-                                            @endforeach
-                                        @else
-                                            <span class="text-muted">——</span>
-                                        @endif
-                                    </td>
-
-                                    <!-- شام -->
-                                    <td>
-                                        @if ($day['dinner']->count())
-                                            @foreach($day['dinner'] as $item)
-                                                {{ $item->food_name }}  [ {{ $item->quantity }} پرس ] <br>
-                                            @endforeach
-                                        @else
-                                            <span class="text-muted">——</span>
-                                        @endif
-                                    </td>
+                <div class="card-body collapse show">
+                    <div class="card-block card-dashboard">
+                        <table class="table table-striped table-bordered base-style text-center">
+                            <thead>
+                                <tr>                                
+                                    <th>تاریخ</th>
+                                    <th>صبحانه</th>
+                                    <th>ناهار</th>
+                                    <th>شام</th>
                                 </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="text-muted text-info font-medium-2 p-4">برای این مرکز هنوز هیچ رزروی ثبت نشده است.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @forelse ($groupedItems as $date => $day)
+                                    <tr>
+                                        <!-- تاریخ -->
+                                        <td>
+                                            {{ \Morilog\Jalali\Jalalian::fromDateTime($date)->format('Y/m/d') }}
+                                            <br>
+                                            <small class="text-muted">
+                                                {{ \Morilog\Jalali\Jalalian::fromDateTime($date)->format('l') }}
+                                            </small>
+                                        </td>                               
+
+                                        <!-- صبحانه -->
+                                        <td>
+                                            @if ($day['breakfast']->count())
+                                                @foreach($day['breakfast'] as $item)
+                                                    {{ $item->food_name }}  [ {{ $item->quantity }} پرس ] <br>
+                                                @endforeach
+                                            @else
+                                                <span class="text-muted">——</span>
+                                            @endif
+                                        </td>
+
+                                        <!-- ناهار -->
+                                        <td>
+                                            @if ($day['lunch']->count())
+                                                @foreach($day['lunch'] as $item)
+                                                    {{ $item->food_name }}  [ {{ $item->quantity }} پرس ] <br>
+                                                @endforeach
+                                            @else
+                                                <span class="text-muted">——</span>
+                                            @endif
+                                        </td>
+
+                                        <!-- شام -->
+                                        <td>
+                                            @if ($day['dinner']->count())
+                                                @foreach($day['dinner'] as $item)
+                                                    {{ $item->food_name }}  [ {{ $item->quantity }} پرس ] <br>
+                                                @endforeach
+                                            @else
+                                                <span class="text-muted">——</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-muted text-info font-medium-2 p-4">برای این مرکز هنوز هیچ رزروی ثبت نشده است.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    </div>    
+        <div class="col-lg-11 col-md-11 col-11">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title-wrap bar-success d-flex justify-content-between">
+                        <h4 class="card-title mb-0">لیست تراکنش ها</h4>
+                    </div>
+                </div>
+
+                <div class="card-body collapse show">
+                    <div class="card-block card-dashboard">
+                        <table class="table table-striped table-bordered base-style text-center">
+                            <thead>
+                                <tr>                                                                    
+                                    <th>تاریخ</th>
+                                    <th>مبلغ</th>
+                                    <th>نوع تراکنش</th>
+                                    <th>وضعیت</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($transactions as $transaction)
+                                    <tr>                                        
+                                        <td>
+                                            {{ \Morilog\Jalali\Jalalian::fromDateTime($date)->format('Y/m/d') }}
+                                            <br>
+                                            <small class="text-muted">
+                                                {{ \Morilog\Jalali\Jalalian::fromDateTime($date)->format('l') }}
+                                            </small>
+                                        </td>                                         
+
+                                        <td>
+                                            {{ number_format($transaction->amount ?? 0) }} تومان
+                                        </td>
+
+                                        <td>
+                                            <span class="font-medium-1 badge badge-{{ $transaction->type_class }}">
+                                                {{ $transaction->type_text }}
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            @if($transaction->isPending())
+                                                <span class="font-medium-1 badge badge-warning">در انتظار</span>
+                                            @elseif($transaction->isSuccess())
+                                                <span class="font-medium-1 badge badge-success text-white">انجام شده</span>
+                                            @elseif($transaction->isFailed())
+                                                <span class="font-medium-1 badge badge-danger text-white">عدم موفقیت</span>
+                                            @elseif($transaction->isCancelled())
+                                                <span class="font-medium-1 badge badge-secondary">لغو شده</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-muted text-info font-medium-2 p-4">برای این مرکز هنوز هیچ تراکنشی ثبت نشده است.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>   
 @endsection
 
 @section('scripts')

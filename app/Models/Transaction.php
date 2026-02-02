@@ -14,9 +14,13 @@ class Transaction extends Model
     const STATUS_FAILED    = 2;
     const STATUS_CANCELLED = 3;
 
+    const TYPE_CREDIT_CHARGE = 1;
+    const TYPE_FOOD_RESERVE  = 2;
+
     protected $fillable = [
         'user_id',
         'center_id',
+        'type',
         'amount',
         'gateway',
         'authority',
@@ -47,6 +51,30 @@ class Transaction extends Model
     public function isFailed(): bool    { return $this->status == self::STATUS_FAILED; }
     public function isCancelled(): bool { return $this->status == self::STATUS_CANCELLED; }
 
+    // متدهای کمکی برای نوع
+    public function isCreditCharge(): bool { return $this->type == self::TYPE_CREDIT_CHARGE; }
+    public function isFoodReserve(): bool  { return $this->type == self::TYPE_FOOD_RESERVE; }
+
+    // Accessor برای متن نوع تراکنش
+    public function getTypeTextAttribute(): string
+    {
+        return match($this->type) {
+            self::TYPE_CREDIT_CHARGE => 'افزایش اعتبار',
+            self::TYPE_FOOD_RESERVE  => 'رزرو غذا',
+            default => 'نامشخص',
+        };
+    }
+
+    // Accessor برای کلاس CSS نوع تراکنش
+    public function getTypeClassAttribute(): string
+    {
+        return match($this->type) {
+            self::TYPE_CREDIT_CHARGE => 'primary',
+            self::TYPE_FOOD_RESERVE  => 'info',
+            default => 'secondary',
+        };
+    }
+    
     public function markAsSuccess(string $refId = null): void
     {
         $this->update([

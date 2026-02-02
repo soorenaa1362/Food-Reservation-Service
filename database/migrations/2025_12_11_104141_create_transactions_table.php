@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('center_id')->constrained()->onDelete('cascade');
+            $table->tinyInteger('type')->nullable();
             $table->bigInteger('amount')->unsigned(); // مبلغ به ریال
             $table->string('gateway', 50)->default('unknown');
             $table->string('authority')->nullable();

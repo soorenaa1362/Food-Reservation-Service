@@ -2,16 +2,18 @@
 
 namespace App\Services;
 
-use App\Models\CreditCard;
+use Carbon\Carbon;
 use App\Models\Meal;
 use App\Models\MealItem;
+use App\Models\CreditCard;
 use App\Models\Reservation;
-use App\Models\ReservationItem;
-use Carbon\Carbon;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
+use App\Models\ReservationItem;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\Transaction\TransactionService;
 
 class MenuService
 {
@@ -27,6 +29,13 @@ class MenuService
         'lunch'     => 'ناهار',
         'dinner'    => 'شام',
     ];
+
+    protected $transactionService;
+
+    public function __construct(TransactionService $transactionService)
+    {
+        $this->transactionService = $transactionService;
+    }
 
     /**
      * دریافت منوهای از امروز تا آخر ماه جاری
@@ -238,6 +247,9 @@ class MenuService
                     'date'           => $data['date'],
                 ]);
             }
+
+            // ایجاد تراکنش
+            $transaction = $this->transactionService->createTransactionForFoodReserve($userId, $centerId, $totalAmount);            
 
             DB::commit();
 

@@ -9,15 +9,21 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use App\Services\Center\CenterService;
 use App\Services\CreditCard\CreditCardService;
+use App\Services\Transaction\TransactionService;
 
 class CreditCardController extends Controller
 {
     protected $creditCardService, $centerService;
 
-    public function __construct(CreditCardService $creditCardService, CenterService $centerService)
+    public function __construct(
+        CreditCardService $creditCardService, 
+        CenterService $centerService,
+        TransactionService $transactionService
+    )
     {
         $this->creditCardService = $creditCardService;
         $this->centerService = $centerService;
+        $this->transactionService = $transactionService;
     }
 
     public function index()
@@ -66,36 +72,6 @@ class CreditCardController extends Controller
         ]));
     }
 
-
-    // public function increaseBalance(Request $request)
-    // {
-    //     $user     = Auth::user();
-    //     $center   = $this->centerService->getSelectedCenter();
-    //     $centerId = $center['id'];
-    //     $userId   = $user->id;
-
-    //     $request->validate([
-    //         'amount' => 'required|integer|min:10000|max:1000000',
-    //     ]);
-
-    //     $amount = $request->integer('amount');
-
-    //     $result = $this->creditCardService->increaseBalance(
-    //         userId: $userId,
-    //         centerId: $centerId,
-    //         amount: $amount
-    //     );
-
-    //     if (!$result['success']) {
-    //         return redirect()->back()->with('error', $result['message'] ?? 'خطا در افزایش موجودی.');
-    //     }
-
-    //     return redirect()->back()->with('success',
-    //         "پرداخت با موفقیت انجام شد! مبلغ " . number_format($amount) . " تومان به موجودی شما اضافه شد."
-    //     );
-    // }
-
-
     
     public function increaseBalance(Request $request)
     {
@@ -126,7 +102,7 @@ class CreditCardController extends Controller
         }
 
         // ثبت تراکنش در جدول transactions
-        $this->createTransaction($user->id, $centerId, $amount);
+        $transaction = $this->transactionService->createTransactionForIncreaseBalance($user->id, $centerId, $amount);
 
         return redirect()->back()->with([
             'success' => [
@@ -134,27 +110,6 @@ class CreditCardController extends Controller
                 'amount' => number_format($amount) . ' تومان',
                 'tracking' => 'TEST-' . time()
             ]
-        ]);
-    }
-
-    private function createTransaction(int $userId, int $centerId, int $amount)
-    {
-        DB::table('transactions')->insert([
-            'user_id' => $userId,
-            'center_id' => $centerId,
-            'amount' => $amount,
-            'gateway' => 'test_mode',
-            'authority' => 'TEST_AUTH_' . time(),
-            'ref_id' => 'TEST_' . time() . '_' . rand(1000, 9999),
-            'status' => 1, // success
-            'description' => 'شارژ اعتبار (حالت تست)',
-            'meta' => json_encode([
-                'test' => true,
-                'timestamp' => now()->toDateTimeString(),
-                'ip' => request()->ip()
-            ]),
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
     }
 }

@@ -4,7 +4,8 @@
     <link rel="stylesheet" type="text/css" href="{{ asset('convex/vendors/css/tables/datatable/datatables.min.css') }}">
     <link rel="stylesheet" type="text/css" href="{{ asset('adminto/sweetalert2/sweetalert2.min.css') }}"/>
 
-    {{-- <style>
+    {{-- index-css --}}
+    <style>
         .disabled-row { opacity: 0.5; color: #6c757d; }
         .enabled-row { opacity: 1; font-weight: bold; color: #212529; }
 
@@ -31,7 +32,71 @@
         .shadow-z-2 {
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
-    </style> --}}
+    </style>
+
+    {{-- modal-css --}}
+    <style>
+        /* کارت اصلی مودال */
+        .card {
+            border-radius: 12px;
+        }
+        .shadow-z-2 {
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        /* سربرگ کارت شبیه جدول غذاها */
+        .card-header {
+            background: #fff;
+            border-bottom: 2px solid #28a745;
+        }
+        .card-header .card-title {
+            font-weight: bold;
+            color: #28a745;
+            margin-bottom: 0;
+        }
+
+        /* کارت نکات */
+        .note-card {
+            background: #e3f2fd;
+            border-radius: 10px;
+            padding: 15px 20px;
+            border-left: 4px solid #2196f3;
+        }
+
+        /* کارت خالی */
+        .empty-card {
+            background: #fff5e6;
+            border-radius: 12px;
+            border: 2px dashed #ffa726;
+        }
+
+        /* جدول */
+        .table-hover tbody tr:hover {
+            background-color: #e9f7ef;
+            transition: background-color 0.3s;
+        }
+
+        .card-footer {
+            border-top: none; /* حذف خط بالای فوتر */
+        }
+
+        /* دکمه‌ها */
+        .btn-success {
+            background-color: #28a745 !important;
+            border-color: #28a745 !important;
+            transition: all 0.3s;
+        }
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
+        }
+        .btn-outline-danger {
+            border-radius: 8px;
+        }
+
+        
+    </style>
+
 @endsection
 
 @section('content')
