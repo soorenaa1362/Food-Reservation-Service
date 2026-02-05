@@ -166,8 +166,7 @@ class SyncHisData extends Command
                         'center_id' => $localCenterId,
                     ],
                     [
-                        'initial_credit'    => $creditData['initial_credit'] ?? 0,
-                        'balance'           => $creditData['current_balance'] ?? $creditData['initial_credit'] ?? 0,
+                        'balance'           => $creditData['balance'] ?? 0,
                         'membership_type'   => $creditData['membership_type'] ?? null,
                         'credit_expires_at' => $creditData['credit_expires_at'] ?? null,
                     ]

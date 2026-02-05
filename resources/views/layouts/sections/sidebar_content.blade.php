@@ -27,6 +27,12 @@
                     <span class="menu-title">وضعیت کارت اعتباری</span>
                 </a>
             </li>
+            <li class="{{ request()->routeIs('user.credit-ledger.index') ? 'active' : '' }}">
+                <a href="{{ route('user.credit-ledger.index') }}">
+                    <i class="ft-calendar font-medium-4"></i>
+                    <span class="menu-title">مدیریت اعتبار</span>
+                </a>
+            </li>
         </ul>
     </div>
 </div>

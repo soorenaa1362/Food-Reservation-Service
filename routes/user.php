@@ -7,6 +7,7 @@ use App\Http\Controllers\User\FoodReservationController;
 use App\Http\Controllers\User\Dashboard\DashboardController;
 use App\Http\Controllers\User\CreditCard\CreditCardController;
 use App\Http\Controllers\User\Transaction\TransactionController;
+use App\Http\Controllers\User\CreditLedger\CreditLedgerController;
 
 Route::middleware('auth')->group(function () {
     // select center
@@ -32,10 +33,19 @@ Route::middleware('auth')->group(function () {
     // روت زیر برای زمانی بود که فرایند افزایش اعتبار رو بدون درگاه موفقیت آمیز در نظر میگرفتم
     Route::patch('/user/credit-card/increase-balance', [CreditCardController::class, 'increaseBalance'])->name('user.credit-card.increase-balance');
 
+    Route::post('/user/credit-card/callback', [CreditCardController::class, 'paymentCallback'])->name('user.credit-card.callback');
+
     // شروع فرآیند پرداخت آنلاین (وقتی کاربر دکمه پرداخت رو می‌زنه)
     Route::post('/user/transactions/start-payment', [TransactionController::class, 'startPayment'])
         ->name('user.transactions.start-payment');
     Route::get('/user/transactions/payment-callback', [TransactionController::class, 'paymentCallback'])
         ->name('user.transactions.payment-callback');
+
+    // credit ledger
+    Route::get('/user/credit-ledger/index', [CreditLedgerController::class, 'index'])->name('user.credit-ledger.index');
+    Route::get('/user/credit-ledger/{credit_ledger_id}/show', [CreditLedgerController::class, 'show'])->name('user.credit-ledger.show');
+
+    // transaction
+    Route::get('/user/transaction/{transaction_id}/show', [TransactionController::class, 'show'])->name('user.transaction.show');
     
 });

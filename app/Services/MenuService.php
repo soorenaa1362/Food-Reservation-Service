@@ -8,6 +8,7 @@ use App\Models\MealItem;
 use App\Models\CreditCard;
 use App\Models\Reservation;
 use App\Models\Transaction;
+use App\Models\CreditLedger;
 use Illuminate\Http\Request;
 use App\Models\ReservationItem;
 use Illuminate\Support\Collection;
@@ -135,14 +136,13 @@ class MenuService
 
         $totalAmount = 0;
         $reservationItemsData = [];
-        $mealItemsToIncrement = []; // [meal_item_id => quantity]
-
+        $mealItemsToIncrement = [];
         $now = Carbon::now();
 
         try {
             DB::beginTransaction();
 
-            // مرحله ۱: اعتبارسنجی ددلاین، سهم موجود و محاسبه مبلغ
+            // مرحله 1: اعتبارسنجی ددلاین و محاسبه مبلغ کل
             foreach ($cartItems as $dayData) {
                 foreach (['breakfast', 'lunch', 'dinner'] as $mealType) {
                     if (!isset($dayData[$mealType])) continue;
@@ -156,35 +156,36 @@ class MenuService
                         $foodName = $item['food_name'] ?? null;
 
                         if (!$dateStr || !$foodName) {
-                            dd("asd");
                             throw new \Exception('اطلاعات آیتم رزرو ناقص است.');
                         }
 
                         $date = Carbon::parse($dateStr);
 
-                        // چک ددلاین
-                        if ($date->isToday()) {
-                            $deadlineHour = self::DEADLINES[$mealType];
-                            if ($now->hour >= $deadlineHour) {
-                                throw new \Exception("مهلت رزرو " . self::PERSIAN_NAMES[$mealType] . " تا ساعت " . sprintf('%02d:00', $deadlineHour) . " است.");
-                            }
+                        // چک ددلاین برای رزرو همان روز
+                        if ($date->isToday() && $now->hour >= self::DEADLINES[$mealType]) {
+                            throw new \Exception(
+                                "مهلت رزرو " . self::PERSIAN_NAMES[$mealType] . 
+                                " تا ساعت " . sprintf('%02d:00', self::DEADLINES[$mealType]) . " است."
+                            );
                         }
 
-                        // پیدا کردن MealItem با قفل
+                        // پیدا کردن MealItem با lock
                         $mealItem = MealItem::whereHas('meal', function ($q) use ($centerId, $date) {
                             $q->where('center_id', $centerId)->where('date', $date);
                         })
-                            ->where('meal_type', $mealType)
-                            ->where('food_name', $foodName)
-                            ->lockForUpdate()
-                            ->first();
+                        ->where('meal_type', $mealType)
+                        ->where('food_name', $foodName)
+                        ->lockForUpdate()
+                        ->first();
 
                         if (!$mealItem) {
                             throw new \Exception("غذای «{$foodName}» در تاریخ {$dateStr} یافت نشد.");
                         }
 
                         if ($quantity > $mealItem->available_portions) {
-                            throw new \Exception("سهم کافی برای «{$foodName}» موجود نیست (درخواست: {$quantity}، موجود: {$mealItem->available_portions}).");
+                            throw new \Exception(
+                                "سهم کافی برای «{$foodName}» موجود نیست (درخواست: {$quantity}، موجود: {$mealItem->available_portions})."
+                            );
                         }
 
                         $totalAmount += $price * $quantity;
@@ -207,49 +208,72 @@ class MenuService
                 throw new \Exception('هیچ موردی برای رزرو انتخاب نشده است.');
             }
 
-            // مرحله ۲: کسر موجودی کارت اعتباری
+            // مرحله 2: بررسی و کسر موجودی کارت اعتباری
             $creditCard = CreditCard::where('user_id', $userId)
                 ->where('center_id', $centerId)
                 ->lockForUpdate()
                 ->first();
 
             if (!$creditCard || $creditCard->balance < $totalAmount) {
-                throw new \Exception('insufficient_balance');
+                return [
+                    'success' => false,
+                    'error_type' => 'insufficient_balance',
+                    'message' => 'موجودی کارت اعتباری کافی نیست.'
+                ];
             }
 
+            $balanceBefore = $creditCard->balance;
             $creditCard->decrement('balance', $totalAmount);
+            $balanceAfter = $creditCard->balance;
 
-            // مرحله ۳: افزایش reserved_count
+            // مرحله 3: افزایش reserved_count برای MealItemها
             foreach ($mealItemsToIncrement as $itemId => $qty) {
                 MealItem::where('id', $itemId)->increment('reserved_count', $qty);
             }
 
-            // مرحله ۴: ساخت رزرو اصلی
+            // مرحله 4: ایجاد رزرو اصلی
             $reservation = Reservation::create([
-                'user_id'          => $userId,
-                'center_id'        => $centerId,
-                'total_amount'     => $totalAmount,      // ← دقیقاً total_amount
-                'reservation_date' => now()->toDateString(), // یا اولین تاریخ رزرو
-                'status'           => 'confirmed',
-                'reserved_at'      => now(),
+                'user_id' => $userId,
+                'center_id' => $centerId,
+                'total_amount' => $totalAmount,
+                'reservation_date' => now()->toDateString(),
+                'status' => 'confirmed',
+                'reserved_at' => now(),
             ]);
 
-            // مرحله ۵: ساخت آیتم‌های رزرو
+            // مرحله 5: ایجاد آیتم‌های رزرو
             foreach ($reservationItemsData as $data) {
                 ReservationItem::create([
                     'reservation_id' => $reservation->id,
-                    'meal_item_id'   => $data['meal_item_id'],
-                    'food_name'      => $data['food_name'],
-                    'meal_type'      => $data['meal_type'],
-                    'quantity'       => $data['quantity'],
-                    'price'          => $data['unit_price'],   // ← price
-                    'total'          => $data['unit_price'] * $data['quantity'], // ← total
-                    'date'           => $data['date'],
+                    'meal_item_id' => $data['meal_item_id'],
+                    'food_name' => $data['food_name'],
+                    'meal_type' => $data['meal_type'],
+                    'quantity' => $data['quantity'],
+                    'price' => $data['unit_price'],
+                    'total' => $data['unit_price'] * $data['quantity'],
+                    'date' => $data['date'],
                 ]);
             }
 
-            // ایجاد تراکنش
-            $transaction = $this->transactionService->createTransactionForFoodReserve($userId, $centerId, $totalAmount);            
+            // مرحله 6: ثبت تراکنش رزرو غذا
+            $transaction = $this->transactionService->createTransactionForFoodReserve(
+                $userId, $centerId, $totalAmount
+            );
+
+            // مرحله 7: ثبت CreditLedger
+            CreditLedger::create([
+                'transaction_id'    =>  $transaction->id,
+                'user_id'           =>  $userId,
+                'center_id'         =>  $centerId,
+                'credit_card_id'    =>  $creditCard->id,
+                'amount'            =>  -$totalAmount,
+                'balance_before'    =>  $balanceBefore,
+                'balance_after'     =>  $balanceAfter,
+                'type'              =>  CreditLedger::TYPE_DECREASE,
+                'source_type'       =>  CreditLedger::SOURCE_PAYMENT,
+                'source_id'         =>  $transaction->id,
+                'description'       =>  "کسر اعتبار برای رزرو غذا (رزرو شماره {$reservation->id})",
+            ]);
 
             DB::commit();
 
@@ -258,19 +282,11 @@ class MenuService
         } catch (\Exception $e) {
             DB::rollBack();
 
-            if ($e->getMessage() === 'insufficient_balance') {
-                return [
-                    'success'    => false,
-                    'error_type' => 'insufficient_balance',
-                    'message'    => 'موجودی کارت اعتباری کافی نیست.'
-                ];
-            }
-
             Log::error('Food reservation failed', [
-                'user_id'    => $userId,
-                'center_id'  => $centerId,
-                'error'      => $e->getMessage(),
-                'trace'      => $e->getTraceAsString()
+                'user_id' => $userId,
+                'center_id' => $centerId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             return [
@@ -279,4 +295,5 @@ class MenuService
             ];
         }
     }
+
 }

@@ -179,6 +179,7 @@
                                     <th>مبلغ</th>
                                     <th>نوع تراکنش</th>
                                     <th>وضعیت</th>
+                                    <th>عملیات</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -212,6 +213,15 @@
                                             @elseif($transaction->isCancelled())
                                                 <span class="font-medium-1 badge badge-secondary">لغو شده</span>
                                             @endif
+                                        </td>
+
+                                        <td>
+                                            <a href="{{ route('user.transaction.show', $transaction->id) }}"
+                                                class="info p-0" data-toggle="tooltip"
+                                                data-placement="top" title="مشاهده"
+                                            >
+                                                <i class="icon-eye font-medium-3 mr-2"></i>
+                                            </a>
                                         </td>
                                     </tr>
                                 @empty

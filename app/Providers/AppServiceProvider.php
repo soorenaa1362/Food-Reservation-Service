@@ -4,31 +4,58 @@ namespace App\Providers;
 
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+
+// repositories
 use App\Repositories\LocalUserRepository;
 use App\Repositories\UserRepositoryInterface;
 
+// payment gateway
+use App\Services\Payment\GatewayService;
+use App\Services\Payment\Gateways\SamanGateway;
+
 class AppServiceProvider extends ServiceProvider
 {
-    public function register()
+    public function register(): void
     {
+        /*
+        |--------------------------------------------------------------------------
+        | Repository Bindings
+        |--------------------------------------------------------------------------
+        */
+
         // برای دمو فعلی از LocalUserRepository استفاده می‌کنیم
-        $this->app->bind(UserRepositoryInterface::class, LocalUserRepository::class);
-        
-        // وقتی API آماده شد، فقط این خط را تغییر بده:
-        // $this->app->bind(UserRepositoryInterface::class, ApiUserRepository::class);
+        $this->app->bind(
+            UserRepositoryInterface::class,
+            LocalUserRepository::class
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Payment Gateway Binding
+        |--------------------------------------------------------------------------
+        |
+        | هر جا GatewayService درخواست شد،
+        | پیاده‌سازی سامان تزریق می‌شود
+        |
+        */
+
+        $this->app->bind(
+            GatewayService::class,
+            SamanGateway::class
+        );
     }
 
-    
     public function boot(): void
     {
-        View::composer([
-            'layouts.sections.sidebar_content'
-        ], function ($view) {
-            $user = auth()->user();
-            $activeRole = session('active_role'); // نقشی که کاربر هنگام ورود انتخاب کرده
+        View::composer(
+            ['layouts.sections.sidebar_content'],
+            function ($view) {
+                $user = auth()->user();
+                $activeRole = session('active_role');
 
-            $view->with('authUser', $user);
-            $view->with('userRole', $activeRole);
-        });
+                $view->with('authUser', $user);
+                $view->with('userRole', $activeRole);
+            }
+        );
     }
 }

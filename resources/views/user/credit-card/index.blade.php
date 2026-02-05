@@ -148,9 +148,9 @@
 @endsection
 
 @section('content')
-    <div class="row">
-        <div class="col-12 d-flex align-items-center justify-content-center">
-            <div class="card px-4 py-3 box-shadow-3 width-600 auth-card">
+    <div class="row d-flex justify-content-center">
+        <div class="col-lg-4 col-md-4 col-11">
+            <div class="card px-3 py-2 box-shadow-3">
                 <!-- هدر کارت -->
                 <div class="card-header text-center border-bottom pb-3">
                     <h4 class="text-uppercase text-bold-500 text-food-orange">
@@ -158,7 +158,7 @@
                     </h4>
                 </div>
                 
-                <div class="card-body">
+                <div class="card-body collapse show">
                     <!-- پیام‌های فلش -->
                     @if (session('success'))
                         <div class="alert alert-success mb-3">

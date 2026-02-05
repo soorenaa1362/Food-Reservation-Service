@@ -4,36 +4,47 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Transaction extends Model
 {
     use HasFactory;
 
+    /* =========================
+     |  Status Constants
+     ========================= */
     const STATUS_PENDING   = 0;
     const STATUS_SUCCESS   = 1;
     const STATUS_FAILED    = 2;
     const STATUS_CANCELLED = 3;
 
-    const TYPE_CREDIT_CHARGE = 1;
-    const TYPE_FOOD_RESERVE  = 2;
+    /* =========================
+     |  Type Constants
+     ========================= */
+    const TYPE_CREDIT_CHARGE = 1; // افزایش اعتبار
+    const TYPE_FOOD_RESERVE  = 2; // رزرو غذا
 
+    /* =========================
+     |  Fillable / Casts
+     ========================= */
     protected $fillable = [
         'user_id',
         'center_id',
         'type',
         'amount',
-        'gateway',
-        'authority',
-        'ref_id',
         'status',
         'description',
         'meta',
     ];
 
     protected $casts = [
+        'amount' => 'integer',
         'meta'   => 'array',
-        'amount' => 'integer', // کافیه، چون bigInteger هم به integer cast می‌شه
     ];
+
+    /* =========================
+     |  Relationships
+     ========================= */
 
     public function user()
     {
@@ -45,17 +56,41 @@ class Transaction extends Model
         return $this->belongsTo(Center::class);
     }
 
-    // متدهای کمکی برای وضعیت
+    // Ledgerهای مربوط به این تراکنش
+    public function ledgers(): HasMany
+    {
+        return $this->hasMany(CreditLedger::class);
+    }
+
+    /* =========================
+     |  Status Helpers
+     ========================= */
     public function isPending(): bool   { return $this->status == self::STATUS_PENDING; }
     public function isSuccess(): bool   { return $this->status == self::STATUS_SUCCESS; }
     public function isFailed(): bool    { return $this->status == self::STATUS_FAILED; }
     public function isCancelled(): bool { return $this->status == self::STATUS_CANCELLED; }
 
-    // متدهای کمکی برای نوع
-    public function isCreditCharge(): bool { return $this->type == self::TYPE_CREDIT_CHARGE; }
-    public function isFoodReserve(): bool  { return $this->type == self::TYPE_FOOD_RESERVE; }
+    /* =========================
+     |  State Mutators
+     ========================= */
+    public function markAsSuccess(): void
+    {
+        $this->update(['status' => self::STATUS_SUCCESS]);
+    }
 
-    // Accessor برای متن نوع تراکنش
+    public function markAsFailed(): void
+    {
+        $this->update(['status' => self::STATUS_FAILED]);
+    }
+
+    public function markAsCancelled(): void
+    {
+        $this->update(['status' => self::STATUS_CANCELLED]);
+    }
+
+    /* =========================
+     |  Accessors
+     ========================= */
     public function getTypeTextAttribute(): string
     {
         return match($this->type) {
@@ -65,7 +100,6 @@ class Transaction extends Model
         };
     }
 
-    // Accessor برای کلاس CSS نوع تراکنش
     public function getTypeClassAttribute(): string
     {
         return match($this->type) {
@@ -73,18 +107,5 @@ class Transaction extends Model
             self::TYPE_FOOD_RESERVE  => 'info',
             default => 'secondary',
         };
-    }
-    
-    public function markAsSuccess(string $refId = null): void
-    {
-        $this->update([
-            'status' => self::STATUS_SUCCESS,
-            'ref_id' => $refId ?? $this->ref_id,
-        ]);
-    }
-
-    public function markAsFailed(): void
-    {
-        $this->update(['status' => self::STATUS_FAILED]);
     }
 }

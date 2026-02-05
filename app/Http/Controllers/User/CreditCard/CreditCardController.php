@@ -8,22 +8,25 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use App\Services\Center\CenterService;
+use App\Services\Payment\PaymentService;
 use App\Services\CreditCard\CreditCardService;
 use App\Services\Transaction\TransactionService;
 
 class CreditCardController extends Controller
 {
-    protected $creditCardService, $centerService;
+    protected $creditCardService, $centerService, $paymentService;
 
     public function __construct(
         CreditCardService $creditCardService, 
         CenterService $centerService,
-        TransactionService $transactionService
+        TransactionService $transactionService,
+        PaymentService $paymentService
     )
     {
         $this->creditCardService = $creditCardService;
         $this->centerService = $centerService;
         $this->transactionService = $transactionService;
+        $this->paymentService = $paymentService;
     }
 
     public function index()
@@ -73,43 +76,92 @@ class CreditCardController extends Controller
     }
 
     
+    // public function increaseBalance(Request $request)
+    // {
+    //     $user = Auth::user();
+        
+    //     // دریافت center_id از سشن (نه از ورودی فرم)
+    //     $centerId = session('selected_center_id');
+        
+    //     if (!$centerId) {
+    //         return redirect()->route('user.centers.select')
+    //             ->with('error', 'لطفاً ابتدا یک مرکز انتخاب کنید.');
+    //     }
+
+    //     $request->validate([
+    //         'amount' => 'required|integer|min:10000|max:1000000',
+    //     ]);
+
+    //     $amount = $request->integer('amount');
+
+    //     $result = $this->creditCardService->increaseBalance(
+    //         userId: $user->id,
+    //         centerId: $centerId,
+    //         amount: $amount
+    //     );
+
+    //     if (!$result['success']) {
+    //         return redirect()->back()->with('error', $result['message'] ?? 'خطا در افزایش موجودی.');
+    //     }
+
+    //     // ثبت تراکنش در جدول transactions
+    //     $transaction = $this->transactionService->createTransactionForIncreaseBalance($user->id, $centerId, $amount);
+
+    //     return redirect()->back()->with([
+    //         'success' => [
+    //             'main' => 'شارژ تستی با موفقیت انجام شد!',
+    //             'amount' => number_format($amount) . ' تومان',
+    //             'tracking' => 'TEST-' . time()
+    //         ]
+    //     ]);
+    // }
+
+
+    // پردازش فرم افزایش اعتبار و شروع پرداخت
     public function increaseBalance(Request $request)
     {
-        $user = Auth::user();
-        
-        // دریافت center_id از سشن (نه از ورودی فرم)
-        $centerId = session('selected_center_id');
-        
-        if (!$centerId) {
-            return redirect()->route('user.centers.select')
-                ->with('error', 'لطفاً ابتدا یک مرکز انتخاب کنید.');
-        }
-
         $request->validate([
             'amount' => 'required|integer|min:10000|max:1000000',
         ]);
 
-        $amount = $request->integer('amount');
+        $user = $request->user();
+        $selectedCenter = session('selected_center');
 
-        $result = $this->creditCardService->increaseBalance(
-            userId: $user->id,
-            centerId: $centerId,
-            amount: $amount
-        );
-
-        if (!$result['success']) {
-            return redirect()->back()->with('error', $result['message'] ?? 'خطا در افزایش موجودی.');
+        if (!$selectedCenter || !isset($selectedCenter['id'])) {
+            return redirect()->route('user.select-center')
+                ->with('error', 'لطفاً ابتدا یک مرکز انتخاب کنید.');
         }
 
-        // ثبت تراکنش در جدول transactions
-        $transaction = $this->transactionService->createTransactionForIncreaseBalance($user->id, $centerId, $amount);
+        $centerId = $selectedCenter['id'];
+        $amount = (int) $request->input('amount');
 
-        return redirect()->back()->with([
-            'success' => [
-                'main' => 'شارژ تستی با موفقیت انجام شد!',
-                'amount' => number_format($amount) . ' تومان',
-                'tracking' => 'TEST-' . time()
-            ]
-        ]);
+        try {
+            $paymentUrl = $this->paymentService->initiatePayment(
+                $user->id,
+                $centerId,
+                $amount
+            );
+
+            return redirect($paymentUrl);
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'خطا در شروع فرآیند پرداخت: ' . $e->getMessage());
+        }
     }
+
+
+    public function paymentCallback(Request $request)
+    {
+        $result = $this->paymentService->paymentCallback($request);
+
+        if ($result['success']) {
+            return redirect()->route('user.credit-card.index')
+                ->with('success', $result['message']);
+        }
+
+        return redirect()->route('user.credit-card.index')
+            ->with('error', $result['message'] ?? 'پرداخت ناموفق بود');
+    }
+
 }

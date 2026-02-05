@@ -28,7 +28,7 @@
         <link rel="stylesheet" type="text/css" href="{{ asset('custom/css/auth.css') }}"> 
         <meta name="csrf-token" content="{{ csrf_token() }}">
     </head>
-    {{-- <body data-col="1-column" class="1-column blank-page" style="background: url('{{ asset('custom/img/foods-1.jpeg') }}') no-repeat center center fixed; background-size: cover;"> --}}
+    <body data-col="1-column" class="1-column blank-page" style="background: url('{{ asset('custom/img/foods-1.jpeg') }}') no-repeat center center fixed; background-size: cover;">
         <div class="wrapper">
             <div class="container-fluid">
                 @yield('content')

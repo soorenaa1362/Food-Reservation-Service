@@ -30,7 +30,6 @@ class TransactionService
             'center_id'   => $centerId,
             'type'        => 2, // نوع تراکنش رزرو غذا
             'amount'      => $totalAmount,
-            'gateway'     => 'اعتبار کاربر',
             'status'      => 1, // موفق
             'description' => $description,
             'created_at'  => now(),
@@ -48,9 +47,6 @@ class TransactionService
             'center_id' => $centerId,
             'type'        => 1, // نوع تراکنش افزایش اعتبار
             'amount' => $amount,
-            'gateway' => 'افزایش اعتبار تستی',
-            'authority' => 'TEST_AUTH_' . time(),
-            'ref_id' => 'TEST_' . time() . '_' . rand(1000, 9999),
             'status' => 1, // success
             'description' => $description,
             'meta' => json_encode([
@@ -61,5 +57,21 @@ class TransactionService
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+
+    public function showTransaction($transactionId)
+    {
+        // فقط تمام ledger های این تراکنش دریافت بشه 
+        // $transaction = Transaction::with('ledgers')
+        //     ->findOrFail($transactionId);
+
+        // دریافت و به ترتیب بیاد
+        $transaction = Transaction::with([
+            'ledgers' => fn($q) => $q->latest()
+            ])->findOrFail($transactionId);
+
+
+        return $transaction;
     }
 }

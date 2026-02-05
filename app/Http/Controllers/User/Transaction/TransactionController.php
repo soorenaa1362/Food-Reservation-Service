@@ -2,17 +2,25 @@
 
 namespace App\Http\Controllers\User\Transaction;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use App\Models\Transaction;
 use App\Models\Center;
+use App\Models\Transaction;
+use Illuminate\Http\Request;
 use Shetabit\Multipay\Invoice;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
+use App\Services\Transaction\TransactionService;
 use Shetabit\Payment\Facade\Payment; // اگر از shetabit/payment استفاده می‌کنی
 // یا use Shetabit\Multipay\Facades\Payment; — بسته به نسخه
 
 class TransactionController extends Controller
 {
+    protected $transactionService;
+
+    public function __construct(TransactionService $transactionService)
+    {
+        $this->transactionService = $transactionService;
+    }
+
     public function startPayment(Request $request)
     {
         dd($request->all());
@@ -80,5 +88,15 @@ class TransactionController extends Controller
 
             return back()->with('error', 'خطا در اتصال به درگاه پرداخت. لطفاً دوباره تلاش کنید.');
         }
+    }
+
+
+    public function show($transactionId)
+    {
+        $transaction = $this->transactionService->showTransaction($transactionId);
+        
+        return view('user.transaction.show', compact([
+            'transaction'
+        ]));
     }
 }
