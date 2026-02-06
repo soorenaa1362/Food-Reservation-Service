@@ -15,8 +15,9 @@ return new class extends Migration
             $table->string('food_name');
             $table->enum('meal_type', ['breakfast', 'lunch', 'dinner']);
             $table->integer('quantity');
-            $table->decimal('price', 12, 0); // قیمت واحد به ریال
-            $table->decimal('total', 12, 0); // مبلغ کل آیتم
+            $table->unsignedBigInteger('price');     // یا bigInteger('price')->unsigned()
+            $table->unsignedBigInteger('total');
+            $table->timestamp('sent_to_his')->nullable();
             $table->date('date'); // تاریخ وعده
             $table->timestamps();
         });

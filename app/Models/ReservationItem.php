@@ -15,13 +15,18 @@ class ReservationItem extends Model
         'price',
         'total',
         'date',
+        'sent_to_his',      
     ];
 
     protected $casts = [
         'date' => 'date',
         'price' => 'integer',
         'total' => 'integer',
+        'sent_to_his' => 'datetime',
     ];
 
-    public function reservation() { return $this->belongsTo(Reservation::class); }
+    public function reservation() 
+    { 
+        return $this->belongsTo(Reservation::class); 
+    }
 }
