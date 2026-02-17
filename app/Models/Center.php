@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use App\Models\CreditCard;
+use App\Models\Meal;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Center extends Model
 {

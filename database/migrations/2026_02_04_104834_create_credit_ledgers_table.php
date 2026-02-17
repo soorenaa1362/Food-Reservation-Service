@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('credit_ledgers', function (Blueprint $table) {
             $table->id();
 
+            /* ---------- Relations ---------- */
+
             $table->foreignId('transaction_id')
                 ->nullable()
                 ->constrained()
@@ -23,16 +25,45 @@ return new class extends Migration
             $table->foreignId('center_id')->constrained()->cascadeOnDelete();
             $table->foreignId('credit_card_id')->constrained()->cascadeOnDelete();
 
-            $table->bigInteger('amount'); // + یا -
+            /* ---------- Ledger math ---------- */
+
+            $table->bigInteger('amount'); // signed
             $table->bigInteger('balance_before');
             $table->bigInteger('balance_after');
 
             $table->tinyInteger('type'); // 1=increase, 2=decrease
-            $table->tinyInteger('source_type'); // 1=payment, 2=reservation, 3=manual
+
+            /* ---------- Business source ---------- */
+
+            $table->tinyInteger('source_type'); // payment/reservation/manual
             $table->unsignedBigInteger('source_id')->nullable();
+
+            /* ---------- Sync / idempotency ---------- */
+
+            // origin of ledger entry
+            // 1=local service, 2=his, 3=system
+            $table->tinyInteger('origin')->default(1);
+
+            // unique id from HIS or local UUID
+            $table->string('external_id')->nullable();
+
+            // duplicate protection
+            $table->unique(['origin', 'external_id']);
+
+            // sync tracking
+            $table->timestamp('received_from_his_at')->nullable();
+            $table->timestamp('sent_to_his_at')->nullable();
+
+            /* ---------- Metadata ---------- */
 
             $table->string('description')->nullable();
             $table->json('meta')->nullable();
+
+            /* ---------- Performance indexes ---------- */
+
+            $table->index(['credit_card_id', 'id']);
+            $table->index(['user_id', 'created_at']);
+            $table->index('origin');
 
             $table->timestamp('created_at')->useCurrent();
         });

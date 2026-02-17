@@ -186,10 +186,10 @@
                                 @forelse ($transactions as $transaction)
                                     <tr>                                        
                                         <td>
-                                            {{ \Morilog\Jalali\Jalalian::fromDateTime($date)->format('Y/m/d') }}
+                                            {{ \Morilog\Jalali\Jalalian::fromDateTime($transaction->created_at)->format('Y/m/d') }}
                                             <br>
                                             <small class="text-muted">
-                                                {{ \Morilog\Jalali\Jalalian::fromDateTime($date)->format('l') }}
+                                                {{ \Morilog\Jalali\Jalalian::fromDateTime($transaction->created_at)->format('l') }}
                                             </small>
                                         </td>                                         
 

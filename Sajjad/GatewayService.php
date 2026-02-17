@@ -3,100 +3,87 @@
 namespace App\Services;
 
 use App\Clients\Gateways\GatewaySaman;
-use App\Models\Payment;
-use App\Models\CreditCard; // مدل کیف پول شما
-use Illuminate\Support\Facades\DB;
+use App\Exceptions\AccessDeniedException;
+use App\Models\PaymentGateway;
+use App\Repositories\GatewayRepository;
+use App\Repositories\PaymentRepository;
+use App\Repositories\ReserveRepository;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
-class GatewayService
+class GatewayService extends BaseService
 {
-    protected $gatewaySaman;
 
-    public function __construct(GatewaySaman $gatewaySaman)
+    public function __construct(
+        protected GatewaySaman      $gatewaySaman,
+        protected ReserveRepository $reserveRepository,
+        protected PaymentRepository $paymentRepository,
+        protected GatewayRepository $gatewayRepository
+    )
     {
-        $this->gatewaySaman = $gatewaySaman;
     }
 
-    /**
-     * ایجاد درخواست پرداخت برای افزایش اعتبار کیف پول
-     */
-    public function initiateCharge(int $cardId, int $amount, ?string $phone = null)
+    // his  side ---------------------------------------------------------------------------------------------------
+    public function create(array $data): PaymentGateway
     {
-        // مبلغ باید به ریال باشه برای سامان
-        $amountInRial = $amount * 10;
+        return $this->gatewayRepository->createGateway($data);
+    }
 
-        // ایجاد رکورد پرداخت (یا تراکنش موقت)
-        $payment = Payment::create([
-            'user_id'     => auth()->id(),
-            'card_id'     => $cardId,
-            'amount'      => $amount, // تومان ذخیره کن
-            'amount_rial' => $amountInRial,
-            'gateway'     => 'saman',
-            'status'      => 'pending',
-            'ref_id'      => 'charge_' . time() . '_' . auth()->id(),
-        ]);
+    public function getAllByCenter(int $centerId): Collection
+    {
+        return $this->gatewayRepository->getAllByCenter($centerId);
+    }
 
-        $token = $this->gatewaySaman->requestToken(
-            $payment->id, // به عنوان ResNum استفاده می‌شه
-            $amountInRial,
-            $phone
+    public function update(array $data): ?PaymentGateway
+    {
+        $gateway = $this->gatewayRepository->findGateway($data['id']);
+        if (!$gateway) return null;
+        $user = Auth::guard('api')->user();
+        if(!($user->hasRoleInCenter('admin', $gateway->center_id))) throw new AccessDeniedException();
+        return $this->gatewayRepository->updateGateway($gateway, $data);
+    }
+
+    public function delete(array $data): bool
+    {
+        $gateway = $this->gatewayRepository->findGateway($data['id']);
+        if (!$gateway) return false;
+        $user = Auth::guard('api')->user();
+        if(!($user->hasRoleInCenter('admin', $gateway->center_id))) throw new AccessDeniedException();
+        return $this->gatewayRepository->safeDelete($gateway);
+    }
+
+
+    // user side ---------------------------------------------------------------------------------------------------
+    public function getActiveByCenter(int $centerId): Collection
+    {
+        return $this->gatewayRepository->getActiveByCenter($centerId);
+    }
+
+    public function getTokenFromBank(int $reserveId, int $amount, $gateway, ?string $phone = null)
+    {
+        return $this->gatewaySaman->getToken($reserveId, $amount, $gateway, $phone)['token'];
+    }
+
+    public function verifyTransaction(string $RefNum, int $terminalId)
+    {
+        $realResultFromBank = (array) $this->gatewaySaman->verifyTransaction(
+            $RefNum,
+            $terminalId
         );
 
-        if (!$token) {
-            $payment->update(['status' => 'failed']);
-            return ['success' => false, 'message' => 'خطا در ارتباط با درگاه'];
-        }
-
-        $payment->update(['token' => $token]);
-
         return [
-            'success' => true,
-            'token'   => $token,
-            'url'     => 'https://sep.shaparak.ir/payment.aspx?Token=' . $token,
+            'Amount' => $realResultFromBank['TransactionDetail']['AffectiveAmount'],
+            'StraceDate' => $realResultFromBank['TransactionDetail']['StraceDate'],
+            'StraceNo' => $realResultFromBank['TransactionDetail']['StraceNo'],
         ];
     }
 
-    /**
-     * هندل کردن بازگشت از بانک (callback)
-     */
-    public function handleCallback($request)
+    public function reverseTransaction(string $RefNum, int $terminalId)
     {
-        $token = $request->Token;
-        $status = $request->State ?? $request->status;
-
-        if ($status !== 'OK') {
-            return ['success' => false, 'message' => 'پرداخت ناموفق بود'];
-        }
-
-        $payment = Payment::where('token', $token)->firstOrFail();
-
-        // جلوگیری از وریفای تکراری
-        if ($payment->status === 'completed') {
-            return ['success' => true, 'message' => 'پرداخت قبلاً تأیید شده'];
-        }
-
-        $verify = $this->gatewaySaman->verifyTransaction($token, $payment->amount_rial);
-
-        if (!$verify['success']) {
-            $payment->update(['status' => 'failed']);
-            return ['success' => false, 'message' => 'تراکنش تأیید نشد'];
-        }
-
-        DB::transaction(function () use ($payment, $verify) {
-            // افزایش موجودی کیف پول
-            $card = CreditCard::findOrFail($payment->card_id);
-            $card->balance += $payment->amount;
-            $card->usable_balance += $payment->amount;
-            $card->save();
-
-            // به‌روزرسانی پرداخت
-            $payment->update([
-                'status'     => 'completed',
-                'ref_num'    => $verify['RefNum'] ?? null,
-                'verified_at'=> now(),
-            ]);
-        });
-
-        return ['success' => true, 'message' => 'پرداخت با موفقیت انجام شد'];
+        return $this->gatewaySaman->reverseTransaction(
+            $RefNum,
+            $terminalId
+        );
     }
 }

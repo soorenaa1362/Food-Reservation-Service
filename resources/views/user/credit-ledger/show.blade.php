@@ -28,18 +28,15 @@
                         {{-- مبلغ --}}
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <span class="text-muted">مبلغ :</span>
-                            <b dir="ltr" class="{{ $creditLedger->type == \App\Models\CreditLedger::TYPE_INCREASE ? 'text-success' : 'text-danger' }} fs-5">
+                            <b dir="ltr" class="{{ $creditLedger->isIncrease() ? 'text-success' : 'text-danger' }} fs-5">
                                 {{ number_format(abs($creditLedger->amount)) }}
-                                <span class="text-muted fs-6">تومان</span>
-                                <span class="fs-6 fw-bold">
-                                    {{ $creditLedger->type == \App\Models\CreditLedger::TYPE_INCREASE ? '(+)' : '(-)' }}
-                                </span>
+                                تومان
                             </b>
                         </div>
 
                         {{-- مانده قبل از --}}
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span class="text-muted">مانده قبل از :</span>
+                            <span class="text-muted">مانده قبل از تراکنش:</span>
                             <b dir="ltr" class="fs-5">
                                 {{ number_format($creditLedger->balance_before) }}
                                 <span class="text-muted fs-6">تومان</span>
@@ -48,7 +45,7 @@
 
                         {{-- مانده بعد از --}}
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span class="text-muted">مانده بعد از :</span>
+                            <span class="text-muted">مانده بعد از تراکنش:</span>
                             <b dir="ltr" class="fs-5">
                                 {{ number_format($creditLedger->balance_after) }}
                                 <span class="text-muted fs-6">تومان</span>
@@ -58,17 +55,24 @@
                         {{-- نوع تراکنش --}}
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <span class="text-muted">نوع تراکنش :</span>
-                            <span class="badge bg-{{ $creditLedger->type_class }} text-white px-3 py-2 font-medium-1">
+                            {{-- <span class="badge bg-{{ $creditLedger->type_class }} text-white px-3 py-2 font-medium-1">
                                 <i class="ft-arrow-{{ $creditLedger->type == \App\Models\CreditLedger::TYPE_INCREASE ? 'up' : 'down' }}"></i>
                                 {{ $creditLedger->type_text }}
+                            </span> --}}
+                            <span class="badge bg-{{ $creditLedger->getTypeBadgeClass() }} text-white px-3 py-2 font-small-3">
+                                <i class="ft-arrow-{{ $creditLedger->isIncrease() ? 'up' : 'down' }}"></i>
+                                {{ $creditLedger->getTypeLabel() }}
                             </span>
                         </div>
 
                         {{-- منبع تراکنش --}}
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <span class="text-muted">منبع تراکنش :</span>
-                            <span class="badge bg-{{ $creditLedger->source_type_class }} text-white px-3 py-2 font-medium-1">
+                            {{-- <span class="badge bg-{{ $creditLedger->source_type_class }} text-white px-3 py-2 font-medium-1">
                                 {{ $creditLedger->source_type_text }}
+                            </span> --}}
+                            <span class="badge bg-{{ $creditLedger->getSourceBadgeClass() }} text-white px-3 py-2 font-small-3">
+                                {{ $creditLedger->getSourceLabel() }}
                             </span>
                         </div>
 

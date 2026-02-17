@@ -39,9 +39,9 @@
                                         </small>
                                     </td> 
                                     <td>
-                                        <span class="d-inline-block">
+                                        <span class="d-inline-block {{ $creditLedger->isIncrease() ? 'text-success' : 'text-danger' }}">
                                             {{ number_format(abs($creditLedger->amount)) }}
-                                            {{ $creditLedger->type == \App\Models\CreditLedger::TYPE_INCREASE ? '+' : '-' }}                                            
+                                            {{ $creditLedger->isIncrease() ? '+' : '-' }}
                                         </span>
                                     </td>
                                     <td>
@@ -51,15 +51,14 @@
                                         {{ number_format($creditLedger->balance_after) }} تومان
                                     </td>
                                     <td>
-                                        <span class="badge bg-{{ $creditLedger->type_class }} text-white">
-                                            <i class="ft-arrow-{{ $creditLedger->type == \App\Models\CreditLedger::TYPE_INCREASE ? 'up' : 'down' }}"></i>
-                                            {{ $creditLedger->type_text }}
+                                        <span class="badge bg-{{ $creditLedger->getTypeBadgeClass() }} text-white">
+                                            <i class="ft-arrow-{{ $creditLedger->isIncrease() ? 'up' : 'down' }}"></i>
+                                            {{ $creditLedger->getTypeLabel() }}
                                         </span>
                                     </td>
-
                                     <td>
-                                        <span class="badge bg-{{ $creditLedger->source_type_class }} text-white">
-                                            {{ $creditLedger->source_type_text }}
+                                        <span class="badge bg-{{ $creditLedger->getSourceBadgeClass() }} text-white">
+                                            {{ $creditLedger->getSourceLabel() }}
                                         </span>
                                     </td>
                                     <td>
@@ -73,7 +72,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-muted text-info font-medium-2 p-4">برای این مرکز هنوز هیچ چیزی ثبت نشده است.</td>
+                                    <td colspan="7" class="text-muted text-info font-medium-2 p-4">برای این مرکز هنوز هیچ چیزی ثبت نشده است.</td>
                                 </tr>
                             @endforelse
                         </tbody>

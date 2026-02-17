@@ -2,40 +2,82 @@
 
 namespace App\Models;
 
+use App\Models\Center;
+use App\Models\CreditCard;
+use App\Models\Transaction;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CreditLedger extends Model
 {
+    /**
+     * Ledger is immutable → we manage timestamps manually
+     */
     public $timestamps = false;
-    
+
+    protected $table = 'credit_ledgers';
+
+    /* ======================================================
+     | Constants
+     * ====================================================== */
+
+    // Ledger direction
+    public const TYPE_INCREASE = 1;
+    public const TYPE_DECREASE = 2;
+
+    // Business source
+    public const SOURCE_PAYMENT     = 1;
+    public const SOURCE_RESERVATION = 2;
+    public const SOURCE_MANUAL      = 3;
+    public const SOURCE_ADJUSTMENT  = 4;
+
+    // Origin (sync direction)
+    public const ORIGIN_LOCAL  = 1;
+    public const ORIGIN_HIS    = 2;
+    public const ORIGIN_SYSTEM = 3;
+
+    /* ======================================================
+     | Mass assignment
+     * ====================================================== */
+
     protected $fillable = [
-        'transaction_id', // ✅ اضافه شد
+        'transaction_id',
         'user_id',
         'center_id',
         'credit_card_id',
+
         'amount',
         'balance_before',
         'balance_after',
+
         'type',
         'source_type',
         'source_id',
+
+        'origin',
+        'external_id',
+
+        'received_from_his_at',
+        'sent_to_his_at',
+
         'description',
         'meta',
+
+        'created_at',
     ];
 
     protected $casts = [
         'meta' => 'array',
-        'amount' => 'integer',
-        'balance_before' => 'integer',
-        'balance_after' => 'integer',
+        'received_from_his_at' => 'datetime',
+        'sent_to_his_at' => 'datetime',
+        'created_at' => 'datetime',
     ];
 
-    /* =========================
-     |  Relationships
-     ========================= */
+    /* ======================================================
+     | Relationships
+     * ====================================================== */
 
-    // ✅ جدید
     public function transaction(): BelongsTo
     {
         return $this->belongsTo(Transaction::class);
@@ -56,134 +98,88 @@ class CreditLedger extends Model
         return $this->belongsTo(CreditCard::class);
     }
 
-    /* =========================
-     |  Constants
-     ========================= */
+    /* ======================================================
+     | Scopes
+     * ====================================================== */
 
-    const TYPE_INCREASE = 1;
-    const TYPE_DECREASE = 2;
-
-    const SOURCE_PAYMENT     = 1;
-    const SOURCE_RESERVATION = 2;
-    const SOURCE_MANUAL      = 3;
-
-    /* =========================
-     |  Static Helpers
-     ========================= */
-
-    // ⬇️ همون helperهای خودت — دست نخورده
-    public static function increase(
-        CreditCard $card,
-        int $amount,
-        int $sourceType,
-        ?int $sourceId = null,
-        ?string $description = null,
-        array $meta = []
-    ): self
+    public function scopeInboundFromHis($query)
     {
-        $balanceBefore = $card->balance;
-        $balanceAfter = $balanceBefore + $amount;
-
-        $ledger = self::create([
-            'user_id'        => $card->user_id,
-            'center_id'      => $card->center_id,
-            'credit_card_id' => $card->id,
-            'amount'         => $amount,
-            'balance_before' => $balanceBefore,
-            'balance_after'  => $balanceAfter,
-            'type'           => self::TYPE_INCREASE,
-            'source_type'    => $sourceType,
-            'source_id'      => $sourceId,
-            'description'    => $description,
-            'meta'           => $meta,
-        ]);
-
-        $card->update(['balance' => $balanceAfter]);
-
-        return $ledger;
+        return $query->where('origin', self::ORIGIN_HIS);
     }
 
-    public static function decrease(
-        CreditCard $card,
-        int $amount,
-        int $sourceType,
-        ?int $sourceId = null,
-        ?string $description = null,
-        array $meta = []
-    ): self
+    public function scopeOutboundToHis($query)
     {
-        $balanceBefore = $card->balance;
-        $balanceAfter = $balanceBefore - $amount;
+        return $query
+            ->where('origin', self::ORIGIN_LOCAL)
+            ->whereNull('sent_to_his_at');
+    }
 
-        if ($balanceAfter < 0) {
-            throw new \Exception("Insufficient credit");
+    public function scopeForCard($query, int $cardId)
+    {
+        return $query->where('credit_card_id', $cardId);
+    }
+
+    /* ======================================================
+     | Helpers
+     * ====================================================== */
+
+    public function isIncrease(): bool
+    {
+        return $this->type === self::TYPE_INCREASE;
+    }
+    public function getTypeLabel(): string
+    {
+        return $this->isIncrease() ? 'افزایش موجودی' : 'کاهش موجودی';
+    }
+    public function getTypeBadgeClass(): string
+    {
+        return $this->isIncrease() ? 'success' : 'danger';
+    }
+
+    public function getSourceLabel(): string
+    {
+        return match ($this->source_type) {
+            self::SOURCE_PAYMENT => 'پرداخت',
+            self::SOURCE_RESERVATION => 'رزرو',
+            self::SOURCE_MANUAL => 'دستی',
+            self::SOURCE_ADJUSTMENT => 'اصلاح',
+        };
+    }
+    public function getSourceBadgeClass(): string
+    {
+        return match ($this->source_type) {
+            self::SOURCE_PAYMENT => 'success',
+            self::SOURCE_RESERVATION => 'info',
+            self::SOURCE_MANUAL => 'warning',
+            self::SOURCE_ADJUSTMENT => 'primary',
+            default => 'secondary',
+        };
+    }
+
+
+    public function markSentToHis(): void
+    {
+        $this->forceFill([
+            'sent_to_his_at' => now(),
+        ])->save();
+    }
+
+    /* ======================================================
+     | Factory helpers (idempotent create pattern)
+     * ====================================================== */
+
+    public static function createIdempotent(array $attributes): self
+    {
+        if (!empty($attributes['external_id']) && isset($attributes['origin'])) {
+            $existing = self::where('origin', $attributes['origin'])
+                ->where('external_id', $attributes['external_id'])
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
         }
 
-        $ledger = self::create([
-            'user_id'        => $card->user_id,
-            'center_id'      => $card->center_id,
-            'credit_card_id' => $card->id,
-            'amount'         => -$amount,
-            'balance_before' => $balanceBefore,
-            'balance_after'  => $balanceAfter,
-            'type'           => self::TYPE_DECREASE,
-            'source_type'    => $sourceType,
-            'source_id'      => $sourceId,
-            'description'    => $description,
-            'meta'           => $meta,
-        ]);
-
-        $card->update(['balance' => $balanceAfter]);
-
-        return $ledger;
-    }
-
-    /* =========================
-     |  Accessors
-     ========================= */
-
-    protected $appends = [
-        'type_text',
-        'type_class',
-        'source_type_text',
-        'source_type_class'
-    ];
-
-    public function getTypeTextAttribute(): string
-    {
-        return match($this->type) {
-            self::TYPE_INCREASE => 'افزایش',
-            self::TYPE_DECREASE => 'کاهش',
-            default => 'نامشخص',
-        };
-    }
-
-    public function getTypeClassAttribute(): string
-    {
-        return match($this->type) {
-            self::TYPE_INCREASE => 'success',
-            self::TYPE_DECREASE => 'danger',
-            default => 'secondary',
-        };
-    }
-
-    public function getSourceTypeTextAttribute(): string
-    {
-        return match($this->source_type) {
-            self::SOURCE_PAYMENT => 'پرداخت',
-            self::SOURCE_RESERVATION => 'رزرو غذا',
-            self::SOURCE_MANUAL => 'دستی',
-            default => 'نامشخص',
-        };
-    }
-
-    public function getSourceTypeClassAttribute(): string
-    {
-        return match($this->source_type) {
-            self::SOURCE_PAYMENT => 'info',
-            self::SOURCE_RESERVATION => 'warning',
-            self::SOURCE_MANUAL => 'dark',
-            default => 'secondary',
-        };
+        return self::create($attributes);
     }
 }

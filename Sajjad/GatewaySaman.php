@@ -2,105 +2,65 @@
 
 namespace App\Clients\Gateways;
 
-use SoapClient;
-use Exception;
-use Illuminate\Support\Facades\Log;
+use App\Models\Payment;
+use Illuminate\Support\Facades\Http;
 
 class GatewaySaman
 {
-    protected $merchantId;
-    protected $password;
-    protected $redirectUrl;
-
-    public function __construct()
+    public function getToken(int $resNum = 12342123123, int $amount = 10000, $gateway, string $phone = '09108443787')
     {
-        // این مقادیر رو بعداً از دیتابیس یا کانفیگ بگیر (از مدل PaymentGateway)
-        $this->merchantId = config('gateways.saman.merchant_id'); // یا از gateway model بگیر
-        $this->password   = config('gateways.saman.password');
-        $this->redirectUrl = route('user.credit-card.callback'); // آدرس بازگشت
-    }
+        $response = Http::withBasicAuth('testuser', 'testpass')
+            ->post('http://food.imhh.ir/baharan/transfer.php?url=' . $gateway->getTokenUrl(),
+                $gateway->getBody([
+                    'resNum' => $resNum,
+                    'amount' => $amount,
+                    'phone' => $phone,
+                ]));
 
-    /**
-     * درخواست توکن از سامان برای رفتن به صفحه پرداخت
-     */
-    public function requestToken(int $reserveId, int $amount, string $mobile = null): ?string
-    {
-        try {
-            $client = new SoapClient('https://sep.shaparak.ir/payments/referencepayment.asmx?WSDL');
-
-            $params = [
-                'MID'         => $this->merchantId,
-                'ResNum'      => (string)$reserveId, // شماره رزرو یا تراکنش شما
-                'Amount'      => $amount,            // به ریال (سامان به ریال کار می‌کند!)
-                'RedirectURL' => $this->redirectUrl,
-                'MobileNo'    => $mobile ?? '',
-            ];
-
-            $result = $client->RequestToken(
-                $params['MID'],
-                $params['ResNum'],
-                $params['Amount'],
-                $params['RedirectURL'],
-                $params['MobileNo']
-            );
-
-            // نتیجه معمولاً یک توکن مثل "ABC123..." یا عدد منفی در صورت خطا
-            if ($result && strlen($result) > 10) {
-                return $result;
-            }
-
-            Log::error('Saman Token Error', ['result' => $result, 'params' => $params]);
-            return null;
-
-        } catch (Exception $e) {
-            Log::error('Saman SOAP Exception: ' . $e->getMessage());
-            return null;
+        if ($response->successful()) {
+            return $response->json();
+        } else {
+            return response()->json([
+                'error' => $response->status(),
+                'message' => $response->body(),
+            ], $response->status());
         }
     }
 
-    /**
-     * وریفای تراکنش پس از بازگشت از بانک
-     */
-    public function verifyTransaction(string $token, int $amount)
+    public function verifyTransaction(string $RefNum, int $terminalId)
     {
-        try {
-            $client = new SoapClient('https://sep.shaparak.ir/payments/referencepayment.asmx?WSDL');
 
-            $result = $client->verifyTransaction($token, $this->merchantId);
+        $response = Http::withBasicAuth('testuser', 'testpass')
+            ->post('http://food.imhh.ir/baharan/transfer.php?url=https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/VerifyTransaction', [
+                'TerminalNumber' => strval($terminalId),
+                'RefNum' => $RefNum,
+            ]);
 
-            // نتیجه موفق معمولاً برابر با مبلغ پرداختی است
-            if ($result == $amount) {
-                return [
-                    'success' => true,
-                    'amount'  => $result,
-                    'RefNum'  => $client->RefNum ?? null, // شماره ارجاع سامان
-                ];
-            }
-
-            Log::warning('Saman Verify Failed', ['token' => $token, 'result' => $result, 'expected' => $amount]);
-            return ['success' => false, 'message' => 'مبلغ واریزی مطابقت ندارد'];
-
-        } catch (Exception $e) {
-            Log::error('Saman Verify Exception: ' . $e->getMessage());
-            return ['success' => false, 'message' => $e->getMessage()];
+        if ($response->successful()) {
+            return $response->json();
+        } else {
+            return response()->json([
+                'error' => $response->status(),
+                'message' => $response->body(),
+            ], $response->status());
         }
     }
 
-    /**
-     * ریورس تراکنش (در صورت نیاز)
-     */
-    public function reverseTransaction(string $token)
+    public function reverseTransaction(string $RefNum, int $terminalId)
     {
-        try {
-            $client = new SoapClient('https://sep.shaparak.ir/payments/referencepayment.asmx?WSDL');
+        $response = Http::withBasicAuth('testuser', 'testpass')
+            ->post('http://food.imhh.ir/baharan/transfer.php?url=https://sep.shaparak.ir/verifyTxnRandomSessionkey/ipg/ReverseTransaction', [
+                'TerminalNumber' => strval($terminalId),
+                'RefNum' => $RefNum,
+            ]);
 
-            $result = $client->reverseTransaction($token, $this->merchantId);
-
-            return $result > 0; // نتیجه مثبت یعنی موفقیت
-
-        } catch (Exception $e) {
-            Log::error('Saman Reverse Exception: ' . $e->getMessage());
-            return false;
+        if ($response->successful()) {
+            return $response->json();
+        } else {
+            return response()->json([
+                'error' => $response->status(),
+                'message' => $response->body(),
+            ], $response->status());
         }
     }
 }

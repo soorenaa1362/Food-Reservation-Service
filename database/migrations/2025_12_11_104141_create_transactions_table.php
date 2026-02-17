@@ -18,17 +18,24 @@ return new class extends Migration
             $table->foreignId('center_id')->constrained()->onDelete('cascade');
 
             $table->tinyInteger('type')->nullable(); // افزایش اعتبار یا رزرو غذا
-            $table->bigInteger('amount');           // مبلغ تراکنش
+            $table->bigInteger('amount');            // مبلغ تراکنش
             $table->tinyInteger('status')->default(0); // pending / success / failed / cancelled
             $table->text('description')->nullable();  // توضیحات دلخواه
             $table->json('meta')->nullable();        // داده اضافی
+
+            /* ---------- Sync / idempotency ---------- */
+            $table->tinyInteger('origin')->default(1); // 1=local, 2=his, 3=system
+            $table->string('external_id')->nullable(); // شناسه یکتا از HIS یا UUID داخلی
+            $table->unique(['origin', 'external_id']); // جلوگیری از duplicate
 
             $table->timestamps();
 
             // ایندکس‌ها
             $table->index(['user_id', 'center_id']);
             $table->index('status');
+            $table->index('origin');
         });
+
     }
 
     /**
