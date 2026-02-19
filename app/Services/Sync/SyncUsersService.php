@@ -2,13 +2,13 @@
 
 namespace App\Services\Sync;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use App\Models\User;
 use App\Models\Center;
 use App\Models\CreditCard;
+use App\Models\User;
 use Illuminate\Support\Facades\Crypt;
-use Throwable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 class SyncUsersService
 {
@@ -32,18 +32,45 @@ class SyncUsersService
                     continue;
                 }
 
+                // $user = User::updateOrCreate(
+                //     ['national_code_hashed' => hash('sha256', $data['national_code'])],
+                //     [
+                //         'mobile_hashed' => hash('sha256', $data['phone_number'] ?? ''),
+                //         'encrypted_first_name' => Crypt::encryptString($data['name'] ?? ''),
+                //         'encrypted_last_name'  => Crypt::encryptString($data['family'] ?? ''),
+                //         'encrypted_full_name'  => Crypt::encryptString(
+                //             trim(($data['name'] ?? '').' '.($data['family'] ?? ''))
+                //         ),
+                //         'is_active' => true,
+                //     ]
+                // );
+
                 $user = User::updateOrCreate(
-                    ['national_code_hashed' => hash('sha256', $data['national_code'])],
-                    [
-                        'mobile_hashed' => hash('sha256', $data['phone_number'] ?? ''),
-                        'encrypted_first_name' => Crypt::encryptString($data['name'] ?? ''),
-                        'encrypted_last_name'  => Crypt::encryptString($data['family'] ?? ''),
-                        'encrypted_full_name'  => Crypt::encryptString(
-                            trim(($data['name'] ?? '').' '.($data['family'] ?? ''))
-                        ),
-                        'is_active' => true,
-                    ]
-                );
+                ['national_code_hashed' => hash('sha256', $data['national_code'])],
+                [
+                    'mobile_hashed'     => !empty($data['phone_number']) 
+                                            ? hash('sha256', $data['phone_number']) 
+                                            : null,
+
+                    'mobile_encrypted'  => !empty($data['phone_number']) 
+                                            ? Crypt::encryptString($data['phone_number']) 
+                                            : null,
+
+                    'encrypted_first_name' => !empty($data['name']) 
+                                            ? Crypt::encryptString($data['name']) 
+                                            : null,
+
+                    'encrypted_last_name'  => !empty($data['family']) 
+                                            ? Crypt::encryptString($data['family']) 
+                                            : null,
+
+                    'encrypted_full_name'  => !empty($data['name']) || !empty($data['family'])
+                                            ? Crypt::encryptString(trim(($data['name'] ?? '') . ' ' . ($data['family'] ?? '')))
+                                            : null,
+
+                    'is_active' => true,
+                ]
+            );
 
                 $centerIds = collect($data['centers'] ?? [])
                     ->map(fn ($id) => Center::where('his_center_id', $id)->value('id'))

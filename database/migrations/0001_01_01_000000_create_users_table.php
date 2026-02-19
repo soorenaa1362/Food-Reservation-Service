@@ -16,6 +16,8 @@ return new class extends Migration
             
             // شماره موبایل هش‌شده (برای تطبیق موقع ارسال OTP)
             $table->string('mobile_hashed', 64)->unique()->index();
+            // برای ارسال واقعی پیامک / تماس / ...
+            $table->text('mobile_encrypted')->nullable();
             
             // نام و نام خانوادگی رمزنگاری‌شده (برای نمایش به کاربر)
             $table->text('encrypted_first_name')->nullable();

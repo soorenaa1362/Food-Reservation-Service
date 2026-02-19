@@ -10,12 +10,12 @@
         <title>
             @yield('title')
         </title>
-        <link rel="apple-touch-icon" sizes="60x60" href="{{ asset('convex/img/ico/apple-icon-60.png') }}">
-        <link rel="apple-touch-icon" sizes="76x76" href="{{ asset('convex/img/ico/apple-icon-76.png') }}">
-        <link rel="apple-touch-icon" sizes="120x120" href="{{ asset('convex/img/ico/apple-icon-120.png') }}">
-        <link rel="apple-touch-icon" sizes="152x152" href="{{ asset('convex/img/ico/apple-icon-152.png') }}">
-        <link rel="shortcut icon" type="image/x-icon" href="{{ asset('convex/img/ico/favicon.ico') }}">
-        <link rel="shortcut icon" type="image/png" href="{{ asset('convex/img/ico/favicon-32.png') }}">
+        {{-- <link rel="apple-touch-icon" sizes="60x60" href="{{ asset('convex/img/ico/apple-icon-60.png') }}"> --}}
+        {{-- <link rel="apple-touch-icon" sizes="76x76" href="{{ asset('convex/img/ico/apple-icon-76.png') }}"> --}}
+        {{-- <link rel="apple-touch-icon" sizes="120x120" href="{{ asset('convex/img/ico/apple-icon-120.png') }}"> --}}
+        {{-- <link rel="apple-touch-icon" sizes="152x152" href="{{ asset('convex/img/ico/apple-icon-152.png') }}"> --}}
+        {{-- <link rel="shortcut icon" type="image/x-icon" href="{{ asset('convex/img/ico/favicon.ico') }}"> --}}
+        {{-- <link rel="shortcut icon" type="image/png" href="{{ asset('convex/img/ico/favicon-32.png') }}"> --}}
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="default">
         {{-- <link href="https://fonts.googleapis.com/css2?family=Vazir:wght@300;400;500;700&display=swap" rel="stylesheet"> --}}
@@ -35,7 +35,7 @@
             </div>
         </div>
         <script src="{{ asset('convex/vendors/js/core/jquery-3.3.1.min.js') }}"></script>
-        <script src="{{ asset('convex/js/persian-datepicker.min.js') }}"></script>
+        {{-- <script src="{{ asset('convex/js/persian-datepicker.min.js') }}"></script> --}}
         <script src="{{ asset('convex/vendors/js/core/popper.min.js') }}"></script>
         <script src="{{ asset('convex/vendors/js/core/bootstrap.min.js') }}"></script>
         <script src="{{ asset('convex/vendors/js/perfect-scrollbar.jquery.min.js') }}"></script>

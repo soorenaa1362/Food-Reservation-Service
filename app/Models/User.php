@@ -14,6 +14,7 @@ class User extends Authenticatable
     protected $fillable = [
         'national_code_hashed',
         'mobile_hashed',
+        'mobile_encrypted',
         'encrypted_first_name',
         'encrypted_last_name',
         'encrypted_full_name',

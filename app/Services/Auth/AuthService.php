@@ -3,9 +3,8 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
-use Illuminate\Support\Str;
-use App\Services\HisDataProvider;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class AuthService
@@ -13,49 +12,86 @@ class AuthService
     private const OTP_LENGTH = 5;
     private const OTP_EXPIRES_MINUTES = 5;
     private const MAX_OTP_ATTEMPTS = 5;
-    private HisDataProvider $hisProvider;
+    protected $otpService;
 
-    public function __construct(HisDataProvider $hisProvider)
+    public function __construct(OtpService $otpService)
     {
-        $this->hisProvider = $hisProvider;
+        $this->otpService = $otpService;
     }
 
     public function sendVerificationCode(string $nationalCode): array
     {
-        // ۱- پیدا کردن کاربر در his.json
-        $userData = $this->hisProvider->getUserByNationalCode($nationalCode);
-        
-        if (!$userData) {
-            return ['success' => false];
+        $nationalCodeHashed = hash('sha256', $nationalCode);
+
+        $user = User::where('national_code_hashed', $nationalCodeHashed)->first();
+
+        if (!$user) {
+            return [
+                'success' => false,
+                'message' => 'کاربر یافت نشد'
+            ];
         }
 
-        // ۲- هش کردن کد ملی و موبایل
-        $nationalCodeHashed = hash('sha256', $nationalCode);
-        $mobileHashed = hash('sha256', $userData['phone_number'] ?? '');
+        if (empty($user->mobile_encrypted)) {
+            \Log::warning("No mobile_encrypted for user ID: {$user->id}");
+            return [
+                'success' => false,
+                'message' => 'شماره موبایل ثبت نشده'
+            ];
+        }
 
-        // ۳- ایجاد یا به‌روزرسانی کاربر محلی
-        $user = User::updateOrCreate(
-            ['national_code_hashed' => $nationalCodeHashed],
-            [
-                'mobile_hashed'         => $mobileHashed,
-                'encrypted_first_name'  => Crypt::encryptString($userData['name'] ?? ''),
-                'encrypted_last_name'   => Crypt::encryptString($userData['family'] ?? ''),
-                'encrypted_full_name'   => Crypt::encryptString(trim(($userData['name'] ?? '') . ' ' . ($userData['family'] ?? ''))),
-                'is_active'             => true,
-            ]
-        );
+        try {
+            $mobile = Crypt::decryptString($user->mobile_encrypted);
+        } catch (\Exception $e) {
+            \Log::error('Decrypt mobile failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+            return [
+                'success' => false,
+                'message' => 'خطا در بازیابی شماره موبایل'
+            ];
+        }
 
-        // ۴- تولید و ذخیره OTP
-        $otp = '12345'; // در پروداکشن: Str::random(self::OTP_LENGTH) یا عدد تصادفی واقعی
+        if (!preg_match('/^09[0-9]{9}$/', $mobile)) {
+            \Log::warning("Invalid mobile format", ['user_id' => $user->id]);
+            return [
+                'success' => false,
+                'message' => 'شماره موبایل نامعتبر'
+            ];
+        }
 
-        $user->otp_code = $otp;
-        $user->otp_expires_at = now()->addMinutes(self::OTP_EXPIRES_MINUTES);
-        $user->otp_attempts = 0; // ریست تلاش‌ها
+        // تولید OTP (برای تست می‌تونی ثابت بذاری، بعداً عوض کن)
+        $otp = random_int(10000, 99999);
+        // $otp = 123456;   // ← برای تست سریع
+
+        // ذخیره OTP
+        $user->otp_code       = $otp;
+        $user->otp_expires_at = now()->addMinutes(5);
+        $user->otp_attempts   = 0;
         $user->save();
 
-        \Log::info("OTP generated and stored for national code: {$nationalCode}");
+        // ارسال پیامک با سرویس SOAP
+        $smsResponse = $this->otpService->sendOtp($mobile, $otp);
 
-        return ['success' => true];
+        if ($smsResponse === false) {
+            Log::error('SMS sending failed via SOAP', [
+                'user_id' => $user->id,
+                'mobile'  => $mobile // فقط در لاگ error
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'خطا در ارسال کد تأیید، لطفاً دوباره تلاش کنید'
+            ];
+        }
+
+        Log::info('OTP sent successfully', [
+            'user_id'       => $user->id,
+            'national_code' => substr($nationalCode, 0, 3) . '*******' . substr($nationalCode, -1)
+        ]);
+
+        return [
+            'success' => true,
+            'message' => 'کد تأیید با موفقیت ارسال شد'
+        ];
     }
 
     public function verifyOTPAndLogin(string $nationalCode, string $code): ?User

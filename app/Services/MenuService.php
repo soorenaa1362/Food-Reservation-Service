@@ -2,19 +2,20 @@
 
 namespace App\Services;
 
-use Carbon\Carbon;
+use App\Models\CreditCard;
+use App\Models\CreditLedger;
 use App\Models\Meal;
 use App\Models\MealItem;
-use App\Models\CreditCard;
 use App\Models\Reservation;
-use App\Models\Transaction;
-use App\Models\CreditLedger;
-use Illuminate\Http\Request;
 use App\Models\ReservationItem;
+use App\Models\Transaction;
+use App\Services\Transaction\TransactionService;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Services\Transaction\TransactionService;
+use Morilog\Jalali\Jalalian;
 
 class MenuService
 {
@@ -41,14 +42,108 @@ class MenuService
     /**
      * دریافت منوهای از امروز تا آخر ماه جاری
      */
+    // public function getMenusForCurrentMonth(int $centerId): array
+    // {
+    //     $today = Carbon::today();
+    //     $endOfMonth = Carbon::now()->endOfMonth();
+
+    //     $meals = Meal::with(['items' => fn($q) => $q->orderBy('meal_type')->orderBy('id')])
+    //         ->where('center_id', $centerId)
+    //         ->whereBetween('date', [$today, $endOfMonth])
+    //         ->orderBy('date')
+    //         ->get();
+
+    //     if ($meals->isEmpty()) {
+    //         return [];
+    //     }
+
+    //     $now = Carbon::now();
+    //     $currentHour = $now->hour;
+
+    //     $days = $meals->map(function (Meal $meal) use ($now, $currentHour) {
+    //         $isToday = $meal->date->isToday();
+
+    //         return [
+    //             'date'      => $meal->date->format('Y-m-d'),
+    //             'is_today'  => $isToday,
+    //             'breakfast' => $this->prepareMeal($meal->breakfast, $isToday, $currentHour, 'breakfast'),
+    //             'lunch'     => $this->prepareMeal($meal->lunch, $isToday, $currentHour, 'lunch'),
+    //             'dinner'    => $this->prepareMeal($meal->dinner, $isToday, $currentHour, 'dinner'),
+    //         ];
+    //     })->values()->all();
+
+    //     return $days;
+    // }
+
+    // public function getMenusForCurrentMonth(int $centerId): array
+    // {
+    //     // امروز به میلادی (برای کوئری دیتابیس)
+    //     $today = Carbon::today();
+
+    //     // محاسبه پایان ماه شمسی جاری و تبدیل به میلادی
+    //     // Jalalian::now() -> تاریخ و ساعت لحظه را به شمسی می‌گیرد
+    //     // endOfMonth() -> پایان همان ماه شمسی را برمی‌گرداند
+    //     // toCarbon() -> تاریخ شمسی را به کلاس Carbon (میلادی) تبدیل می‌کند
+    //     $endOfMonth = Jalalian::now()->endOfMonth()->toCarbon();
+
+    //     // ادامه کوئری همانند قبل است، اما بازه زمانی اصلاح شده
+    //     $meals = Meal::with(['items' => fn($q) => $q->orderBy('meal_type')->orderBy('id')])
+    //         ->where('center_id', $centerId)
+    //         ->whereBetween('date', [$today, $endOfMonth]) // اکنون تا پایان ماه شمسی
+    //         ->orderBy('date')
+    //         ->get();
+
+    //     if ($meals->isEmpty()) {
+    //         return [];
+    //     }
+
+    //     $now = Carbon::now();
+    //     $currentHour = $now->hour;
+
+    //     $days = $meals->map(function (Meal $meal) use ($now, $currentHour) {
+    //         $isToday = $meal->date->isToday();
+
+    //         return [
+    //             'date'      => $meal->date->format('Y-m-d'),
+    //             'is_today'  => $isToday,
+    //             'breakfast' => $this->prepareMeal($meal->breakfast, $isToday, $currentHour, 'breakfast'),
+    //             'lunch'     => $this->prepareMeal($meal->lunch, $isToday, $currentHour, 'lunch'),
+    //             'dinner'    => $this->prepareMeal($meal->dinner, $isToday, $currentHour, 'dinner'),
+    //         ];
+    //     })->values()->all();
+
+    //     return $days;
+    // }
+
     public function getMenusForCurrentMonth(int $centerId): array
     {
         $today = Carbon::today();
-        $endOfMonth = Carbon::now()->endOfMonth();
+
+        // --- شروع محاسبه دستی آخر ماه شمسی ---
+        $jNow = \Morilog\Jalali\Jalalian::now();
+        $year = $jNow->getYear();
+        $month = $jNow->getMonth();
+
+        // محاسبه ماه و سال بعد
+        $nextMonth = $month + 1;
+        $nextYear = $year;
+
+        // اگر ماه اسفند (۱۲) بود، بریم سر فروردین سال بعد
+        if ($month > 11) { 
+            $nextMonth = 1;
+            $nextYear = $year + 1;
+        }
+
+        // ساخت تاریخ اول ماه بعد شمسی
+        $firstOfNextMonthJalali = new \Morilog\Jalali\Jalalian($nextYear, $nextMonth, 1);
+        
+        // کم کردن یک روز از اول ماه بعد برای رسیدن به آخر ماه جاری، و تبدیل به میلادی
+        $endOfMonth = $firstOfNextMonthJalali->subDays(1)->toCarbon();
+        // --- پایان محاسبه دستی ---
 
         $meals = Meal::with(['items' => fn($q) => $q->orderBy('meal_type')->orderBy('id')])
             ->where('center_id', $centerId)
-            ->whereBetween('date', [$today, $endOfMonth])
+            ->whereBetween('date', [$today, $endOfMonth]) // استفاده از تاریخ محاسبه شده
             ->orderBy('date')
             ->get();
 

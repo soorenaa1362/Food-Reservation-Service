@@ -15,7 +15,7 @@ Route::prefix('his')->middleware('his.auth')->group(function () {
     // Sync credit ledger
     // Route::post('/credit-ledgers/sync', [HisCreditLedgerSyncController::class, 'sync']);
 
-    Route::get('/reservations', [HisReservationController::class, 'index']);
+    Route::post('/reservations', [HisReservationController::class, 'index']);
 });
 
 Route::prefix('his')->group(function () {

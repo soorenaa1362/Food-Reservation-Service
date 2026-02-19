@@ -45,7 +45,7 @@ class SyncAllService
             DB::transaction(function () use (&$stats) {
                 $stats['centers_synced']    = $this->centersService->sync();
                 $stats['users_synced']      = $this->usersService->sync();
-                $stats['menu_items_synced'] = $this->menuService->sync();
+                $stats['menu_items_synced'] = $this->menusService->sync();
             });
         } catch (\Exception $e) {
             $stats['success'] = false;

@@ -2,21 +2,45 @@
 
 namespace App\Services\Auth;
 
-use App\Repositories\User\UserRepositoryInterface;
+use Illuminate\Support\Facades\Log;
 
 class OtpService
 {
-    protected $userRepository;
-
-    public function __construct(UserRepositoryInterface $userRepository)
+    public function sendOtp($phone, $otpCode)
     {
-        $this->userRepository = $userRepository;
-    }
+        $options = [
+            'trace' => 1,
+            'exceptions' => true,
+            'cache_wsdl' => WSDL_CACHE_NONE,
+            'stream_context' => stream_context_create([
+                'ssl' => [
+                    'verify_peer' => true,
+                    'verify_peer_name' => true,
+                ]
+            ])
+        ];
 
-    public function sendOtp(string $nationalCode, ?string $mobile, string $otp): bool
-    {
-        \Log::info("Storing OTP $otp for $nationalCode");
-        $this->userRepository->updateOtp($nationalCode, $otp, now()->addMinutes(5));
-        return true; // همیشه true، چون پیامک واقعی نداریم
+        try {
+            $wsdlUrl = env('SMS_WSDL_URL');
+            $client = new \SoapClient($wsdlUrl, $options);
+
+            $message = "کد تأیید شما: \n $otpCode";
+
+
+            $response = $client->__soapCall('send', [
+                'username' => env('SMS_USERNAME'),
+                'password' => env('SMS_PASSWORD'),
+                'to'       => $phone,
+                'from'     => env('SMS_FROM'),
+                'message'  => $message,
+            ]);
+
+
+            return $response;
+
+        } catch (\Exception $e) {
+            Log::error('OTP SMS failed: ' . $e->getMessage());
+            return false;
+        }
     }
 }
