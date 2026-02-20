@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CenterMealDeadline;
 use App\Models\CreditCard;
 use App\Models\CreditLedger;
 use App\Models\Meal;
@@ -19,13 +20,7 @@ use Morilog\Jalali\Jalalian;
 
 class MenuService
 {
-    // ددلاین‌ها برای هر وعده (ساعت به صورت 24 ساعته)
-    private const DEADLINES = [
-        'breakfast' => 9,   // تا ساعت 09:00
-        'lunch'     => 16,  // تا ساعت 16:00
-        'dinner'    => 21,  // تا ساعت 21:00
-    ];
-
+    // ثابت نام‌های فارسی (برای نمایش در پیام‌ها)
     private const PERSIAN_NAMES = [
         'breakfast' => 'صبحانه',
         'lunch'     => 'ناهار',
@@ -40,158 +35,109 @@ class MenuService
     }
 
     /**
-     * دریافت منوهای از امروز تا آخر ماه جاری
+     * دریافت لیست روزها از امروز تا آخر ماه شمسی
      */
-    // public function getMenusForCurrentMonth(int $centerId): array
-    // {
-    //     $today = Carbon::today();
-    //     $endOfMonth = Carbon::now()->endOfMonth();
-
-    //     $meals = Meal::with(['items' => fn($q) => $q->orderBy('meal_type')->orderBy('id')])
-    //         ->where('center_id', $centerId)
-    //         ->whereBetween('date', [$today, $endOfMonth])
-    //         ->orderBy('date')
-    //         ->get();
-
-    //     if ($meals->isEmpty()) {
-    //         return [];
-    //     }
-
-    //     $now = Carbon::now();
-    //     $currentHour = $now->hour;
-
-    //     $days = $meals->map(function (Meal $meal) use ($now, $currentHour) {
-    //         $isToday = $meal->date->isToday();
-
-    //         return [
-    //             'date'      => $meal->date->format('Y-m-d'),
-    //             'is_today'  => $isToday,
-    //             'breakfast' => $this->prepareMeal($meal->breakfast, $isToday, $currentHour, 'breakfast'),
-    //             'lunch'     => $this->prepareMeal($meal->lunch, $isToday, $currentHour, 'lunch'),
-    //             'dinner'    => $this->prepareMeal($meal->dinner, $isToday, $currentHour, 'dinner'),
-    //         ];
-    //     })->values()->all();
-
-    //     return $days;
-    // }
-
-    // public function getMenusForCurrentMonth(int $centerId): array
-    // {
-    //     // امروز به میلادی (برای کوئری دیتابیس)
-    //     $today = Carbon::today();
-
-    //     // محاسبه پایان ماه شمسی جاری و تبدیل به میلادی
-    //     // Jalalian::now() -> تاریخ و ساعت لحظه را به شمسی می‌گیرد
-    //     // endOfMonth() -> پایان همان ماه شمسی را برمی‌گرداند
-    //     // toCarbon() -> تاریخ شمسی را به کلاس Carbon (میلادی) تبدیل می‌کند
-    //     $endOfMonth = Jalalian::now()->endOfMonth()->toCarbon();
-
-    //     // ادامه کوئری همانند قبل است، اما بازه زمانی اصلاح شده
-    //     $meals = Meal::with(['items' => fn($q) => $q->orderBy('meal_type')->orderBy('id')])
-    //         ->where('center_id', $centerId)
-    //         ->whereBetween('date', [$today, $endOfMonth]) // اکنون تا پایان ماه شمسی
-    //         ->orderBy('date')
-    //         ->get();
-
-    //     if ($meals->isEmpty()) {
-    //         return [];
-    //     }
-
-    //     $now = Carbon::now();
-    //     $currentHour = $now->hour;
-
-    //     $days = $meals->map(function (Meal $meal) use ($now, $currentHour) {
-    //         $isToday = $meal->date->isToday();
-
-    //         return [
-    //             'date'      => $meal->date->format('Y-m-d'),
-    //             'is_today'  => $isToday,
-    //             'breakfast' => $this->prepareMeal($meal->breakfast, $isToday, $currentHour, 'breakfast'),
-    //             'lunch'     => $this->prepareMeal($meal->lunch, $isToday, $currentHour, 'lunch'),
-    //             'dinner'    => $this->prepareMeal($meal->dinner, $isToday, $currentHour, 'dinner'),
-    //         ];
-    //     })->values()->all();
-
-    //     return $days;
-    // }
-
     public function getMenusForCurrentMonth(int $centerId): array
     {
         $today = Carbon::today();
+        $currentHour = Carbon::now()->hour;
 
-        // --- شروع محاسبه دستی آخر ماه شمسی ---
+        // --- دریافت ددلاین‌های فعال این مرکز ---
+        $deadlines = CenterMealDeadline::where('center_id', $centerId)
+            ->where('is_active', true)
+            ->get()
+            ->keyBy('meal_type'); // ایندکس کردن بر اساس نوع وعده
+
+        // --- محاسبه بازه زمانی: امروز تا آخر ماه شمسی ---
         $jNow = \Morilog\Jalali\Jalalian::now();
         $year = $jNow->getYear();
         $month = $jNow->getMonth();
 
-        // محاسبه ماه و سال بعد
         $nextMonth = $month + 1;
         $nextYear = $year;
 
-        // اگر ماه اسفند (۱۲) بود، بریم سر فروردین سال بعد
         if ($month > 11) { 
             $nextMonth = 1;
             $nextYear = $year + 1;
         }
 
-        // ساخت تاریخ اول ماه بعد شمسی
         $firstOfNextMonthJalali = new \Morilog\Jalali\Jalalian($nextYear, $nextMonth, 1);
-        
-        // کم کردن یک روز از اول ماه بعد برای رسیدن به آخر ماه جاری، و تبدیل به میلادی
         $endOfMonth = $firstOfNextMonthJalali->subDays(1)->toCarbon();
-        // --- پایان محاسبه دستی ---
 
+        // دریافت منوها
         $meals = Meal::with(['items' => fn($q) => $q->orderBy('meal_type')->orderBy('id')])
             ->where('center_id', $centerId)
-            ->whereBetween('date', [$today, $endOfMonth]) // استفاده از تاریخ محاسبه شده
+            ->whereBetween('date', [$today, $endOfMonth])
             ->orderBy('date')
             ->get();
 
-        if ($meals->isEmpty()) {
-            return [];
+        $mealsByKey = $meals->keyBy(function ($item) {
+            return $item->date->format('Y-m-d');
+        });
+
+        $days = [];
+        $currentDate = $today->copy();
+
+        while ($currentDate->lte($endOfMonth)) {
+            $dateString = $currentDate->format('Y-m-d');
+            $isToday = $currentDate->isToday();
+
+            if ($mealsByKey->has($dateString)) {
+                $meal = $mealsByKey->get($dateString);
+                
+                // ارسال ددلاین مربوط به هر وعده به متد prepareMeal
+                $days[] = [
+                    'date'      => $dateString,
+                    'is_today'  => $isToday,
+                    'breakfast' => $this->prepareMeal($meal->breakfast ?? collect(), $isToday, $currentHour, 'breakfast', $deadlines->get('breakfast')),
+                    'lunch'     => $this->prepareMeal($meal->lunch ?? collect(), $isToday, $currentHour, 'lunch', $deadlines->get('lunch')),
+                    'dinner'    => $this->prepareMeal($meal->dinner ?? collect(), $isToday, $currentHour, 'dinner', $deadlines->get('dinner')),
+                ];
+            } else {
+                $days[] = [
+                    'date'      => $dateString,
+                    'is_today'  => $isToday,
+                    'breakfast' => [],
+                    'lunch'     => [],
+                    'dinner'    => [],
+                ];
+            }
+
+            $currentDate->addDay();
         }
-
-        $now = Carbon::now();
-        $currentHour = $now->hour;
-
-        $days = $meals->map(function (Meal $meal) use ($now, $currentHour) {
-            $isToday = $meal->date->isToday();
-
-            return [
-                'date'      => $meal->date->format('Y-m-d'),
-                'is_today'  => $isToday,
-                'breakfast' => $this->prepareMeal($meal->breakfast, $isToday, $currentHour, 'breakfast'),
-                'lunch'     => $this->prepareMeal($meal->lunch, $isToday, $currentHour, 'lunch'),
-                'dinner'    => $this->prepareMeal($meal->dinner, $isToday, $currentHour, 'dinner'),
-            ];
-        })->values()->all();
 
         return $days;
     }
 
     /**
-     * آماده‌سازی آیتم‌های یک وعده (با چک ددلاین)
+     * آماده‌سازی آیتم‌های یک وعده (با چک ددلاین داینامیک)
      */
-    private function prepareMeal(Collection $items, bool $isToday, int $currentHour, string $mealType): array
+    private function prepareMeal(Collection $items, bool $isToday, int $currentHour, string $mealType, ?CenterMealDeadline $deadline): array
     {
         if ($items->isEmpty()) {
             return [];
         }
 
-        $deadlineHour = self::DEADLINES[$mealType];
-        $persianName = self::PERSIAN_NAMES[$mealType];
-
-        if (!$isToday) {
-            return $this->formatNormalItems($items);
-        }
-
-        if ($currentHour >= $deadlineHour) {
-            return [[
+        // اگر ددلاین یافت نشد یا غیرفعال بود، به منزله بسته بودن رزرو است (ایمن‌ترین حالت)
+        if (!$deadline || !$deadline->is_active) {
+             return [[
                 'deadline_passed' => true,
-                'message'         => "مهلت رزرو {$persianName} تا ساعت " . sprintf('%02d:00', $deadlineHour) . " است.",
+                'message'         => "امکان رزرو برای " . self::PERSIAN_NAMES[$mealType] . " فعلاً غیرفعال است.",
                 'is_reservable'   => false,
             ]];
         }
+
+        // چک کردن زمان: اگر امروز است و ساعت فعلی از ساعت پایان (reservation_to_hour) گذشته باشد
+        if ($isToday && $currentHour > $deadline->reservation_to_hour) {
+            return [[
+                'deadline_passed' => true,
+                'message'         => "مهلت رزرو " . self::PERSIAN_NAMES[$mealType] . " تا ساعت " . sprintf('%02d:00', $deadline->reservation_to_hour) . " بوده است.",
+                'is_reservable'   => false,
+            ]];
+        }
+        
+        // چک کردن ساعت شروع (اختیاری): اگر می‌خواهید قبل از ساعت شروع هم نمایش داده نشود، خط زیر را فعال کنید
+        // if ($isToday && $currentHour < $deadline->reservation_from_hour) { ... }
 
         return $this->formatNormalItems($items);
     }
@@ -221,12 +167,15 @@ class MenuService
     public function processReservation(Request $request, int $userId, int $centerId): array
     {
         $cartItems = $request->input('cart_items', []);
+        
+        // دریافت ددلاین‌های فعال برای اعتبارسنجی سمت سرور
+        $deadlines = CenterMealDeadline::where('center_id', $centerId)
+            ->where('is_active', true)
+            ->get()
+            ->keyBy('meal_type');
 
         if (empty($cartItems)) {
-            return [
-                'success' => false,
-                'message' => 'هیچ غذایی انتخاب نشده است.'
-            ];
+            return ['success' => false, 'message' => 'هیچ غذایی انتخاب نشده است.'];
         }
 
         $totalAmount = 0;
@@ -237,7 +186,6 @@ class MenuService
         try {
             DB::beginTransaction();
 
-            // مرحله 1: اعتبارسنجی ددلاین و محاسبه مبلغ کل
             foreach ($cartItems as $dayData) {
                 foreach (['breakfast', 'lunch', 'dinner'] as $mealType) {
                     if (!isset($dayData[$mealType])) continue;
@@ -256,13 +204,22 @@ class MenuService
 
                         $date = Carbon::parse($dateStr);
 
-                        // چک ددلاین برای رزرو همان روز
-                        if ($date->isToday() && $now->hour >= self::DEADLINES[$mealType]) {
+                        // --- اعتبارسنجی ددلاین با استفاده از مدل ---
+                        $deadline = $deadlines->get($mealType);
+
+                        // 1. اگر ددلاین تعریف نشده یا غیرفعال باشد
+                        if (!$deadline || !$deadline->is_active) {
+                            throw new \Exception("رزرو " . self::PERSIAN_NAMES[$mealType] . " برای این مرکز غیرفعال است.");
+                        }
+
+                        // 2. چک کردن زمان برای رزرو همان روز
+                        if ($date->isToday() && $now->hour > $deadline->reservation_to_hour) {
                             throw new \Exception(
                                 "مهلت رزرو " . self::PERSIAN_NAMES[$mealType] . 
-                                " تا ساعت " . sprintf('%02d:00', self::DEADLINES[$mealType]) . " است."
+                                " تا ساعت " . sprintf('%02d:00', $deadline->reservation_to_hour) . " بوده و تمام شده است."
                             );
                         }
+                        // --- پایان اعتبارسنجی ددلاین ---
 
                         // پیدا کردن MealItem با lock
                         $mealItem = MealItem::whereHas('meal', function ($q) use ($centerId, $date) {
@@ -321,12 +278,12 @@ class MenuService
             $creditCard->decrement('balance', $totalAmount);
             $balanceAfter = $creditCard->balance;
 
-            // مرحله 3: افزایش reserved_count برای MealItemها
+            // مرحله 3: افزایش reserved_count
             foreach ($mealItemsToIncrement as $itemId => $qty) {
                 MealItem::where('id', $itemId)->increment('reserved_count', $qty);
             }
 
-            // مرحله 4: ایجاد رزرو اصلی
+            // مرحله 4: ایجاد رزرو
             $reservation = Reservation::create([
                 'user_id' => $userId,
                 'center_id' => $centerId,
@@ -350,12 +307,9 @@ class MenuService
                 ]);
             }
 
-            // مرحله 6: ثبت تراکنش رزرو غذا
-            $transaction = $this->transactionService->createTransactionForFoodReserve(
-                $userId, $centerId, $totalAmount
-            );
+            // مرحله 6 و 7: تراکنش و لجر
+            $transaction = $this->transactionService->createTransactionForFoodReserve($userId, $centerId, $totalAmount);
 
-            // مرحله 7: ثبت CreditLedger
             CreditLedger::create([
                 'transaction_id'    =>  $transaction->id,
                 'user_id'           =>  $userId,
@@ -390,5 +344,4 @@ class MenuService
             ];
         }
     }
-
 }

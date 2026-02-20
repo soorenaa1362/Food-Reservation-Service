@@ -8,82 +8,57 @@ use App\Models\Center;
 
 class SyncCentersService
 {
-    // public function sync(): int
-    // {
-    //     $rawCenters = $this->fetchCenters();
-
-    //     if (empty($rawCenters)) {
-    //         Log::warning('هیچ مرکزی برای سینک دریافت نشد');
-    //         return 0;
-    //     }
-
-    //     $count = 0;
-
-    //     DB::transaction(function () use ($rawCenters, &$count) {
-    //         foreach ($rawCenters as $data) {
-    //             // اعتبارسنجی حداقل
-    //             if (empty($data['id'])) {
-    //                 Log::warning('مرکز بدون id نادیده گرفته شد', ['data' => $data]);
-    //                 continue;
-    //             }
-
-    //             $hisCenterId = (string) $data['id'];
-
-    //             Center::updateOrCreate(
-    //                 ['his_center_id' => $hisCenterId],
-    //                 [
-    //                     'name'    => $data['name']    ?? 'مرکز بدون نام',
-    //                     'type'    => $data['type']    ?? null,
-    //                     'address' => $data['address'] ?? null,
-    //                     // اگر فیلدهای بیشتری در آینده اضافه شد، اینجا اضافه می‌کنی
-    //                 ]
-    //             );
-
-    //             $count++;
-    //         }
-    //     });
-
-    //     Log::info('سینک مراکز تمام شد', ['تعداد سینک‌شده' => $count]);
-
-    //     return $count;
-    // }
-
-    
     public function sync(): int
     {
         $rawCenters = $this->fetchCenters();
-
         $count = 0;
 
         DB::transaction(function () use ($rawCenters, &$count) {
-
             foreach ($rawCenters as $data) {
+                if (empty($data['id'])) {
+                    continue;
+                }
 
-                if (empty($data['id'])) continue;
-
-                Center::updateOrCreate(
+                $center = Center::updateOrCreate(
                     ['his_center_id' => (string)$data['id']],
                     [
-                        'name' => $data['name'] ?? '',
-                        'type' => $data['type'] ?? null,
+                        'name'    => $data['name']    ?? '',
+                        'type'    => $data['type']    ?? null,
                         'address' => $data['address'] ?? null,
                     ]
                 );
 
                 $count++;
+
+                // مدیریت meal_deadlines - overwrite کامل
+                $deadlinesData = $data['meal_deadlines'] ?? [];
+
+                // حذف تمام ددلاین‌های قبلی این مرکز
+                $center->mealDeadlines()->delete();
+
+                foreach ($deadlinesData as $item) {
+                    if (empty($item['meal_type']) || !in_array($item['meal_type'], ['breakfast', 'lunch', 'dinner'])) {
+                        Log::warning("ددلاین نامعتبر برای مرکز {$center->his_center_id}", ['item' => $item]);
+                        continue;
+                    }
+
+                    $center->mealDeadlines()->create([
+                        'meal_type'             => $item['meal_type'],
+                        'reservation_to_hour'   => (int)($item['to_hour']   ?? 23),
+                        'is_active'             => $item['is_active'] ?? true,
+                    ]);
+                }
             }
         });
+
+        Log::info("سینک مراکز به پایان رسید", ['processed' => $count]);
 
         return $count;
     }
 
-    /* ======================================================
-     |  Private Methods
-     * ====================================================== */
     private function fetchCenters(): array
     {
         $path = storage_path('app/his-data/centers.json');
-
         if (!file_exists($path)) {
             Log::warning("فایل centers.json پیدا نشد", ['path' => $path]);
             return [];

@@ -11,7 +11,7 @@ class Meal extends Model
     protected $fillable = ['center_id', 'date'];
 
     protected $casts = [
-        'date' => 'date',
+        'date' => 'date:Y-m-d',
     ];
 
     public function center(): BelongsTo

@@ -44,9 +44,9 @@ class FoodReservationController extends Controller
             // دریافت منوهای ماه جاری (از امروز تا آخر ماه)
             $days = $this->menuService->getMenusForCurrentMonth($centerId);
 
-            if (empty($days)) {
-                return redirect()->back()->with('info', 'برای مرکز انتخاب‌شده در این ماه منوی غذایی ثبت نشده است.');
-            }
+            // if (empty($days)) {
+            //     return redirect()->back()->with('info', 'برای مرکز انتخاب‌شده در این ماه منوی غذایی ثبت نشده است.');
+            // }
 
             return view('user.food-reservation.index', compact('days', 'center', 'balance', 'creditCard'));
 

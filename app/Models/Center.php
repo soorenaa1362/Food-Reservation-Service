@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\CenterMealDeadline;
 use App\Models\CreditCard;
 use App\Models\Meal;
 use App\Models\User;
@@ -39,6 +40,11 @@ class Center extends Model
     public function meals(): HasMany
     {
         return $this->hasMany(Meal::class);
+    }
+
+    public function mealDeadlines()
+    {
+        return $this->hasMany(CenterMealDeadline::class);
     }
     
     

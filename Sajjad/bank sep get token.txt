@@ -1,8 +1,0 @@
-{
-    "action": "token",
-    "TerminalId": "31134005",
-    "Amount": 1000,
-    "ResNum": "1qaz@WSXza",
-    "RedirectUrl": "http://imhh.ir/receipt",
-    "CellNumber": "9105461787"
-}

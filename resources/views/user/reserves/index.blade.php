@@ -5,21 +5,20 @@
     <link rel="stylesheet" type="text/css" href="{{ asset('adminto/sweetalert2/sweetalert2.min.css') }}"/>
 @endsection
 
-@section('content')
-
-    @if (session('success'))
-        <div class="alert alert-success text-center">
-            {{ session('success') }}
-        </div>
-    @endif
-    @if (session('error'))
-        <div class="alert alert-danger text-center">
-            {{ session('error') }}
-        </div>
-    @endif
+@section('content')    
 
     <div class="col-12">
         <div class="card">
+            @if (session('success'))
+                <div class="alert alert-success text-center">
+                    {{ session('success') }}
+                </div>
+            @endif
+            @if (session('error'))
+                <div class="alert alert-danger text-center">
+                    {{ session('error') }}
+                </div>
+            @endif
             <div class="card-header">
                 <div class="card-title-wrap bar-success d-flex justify-content-between">
                     <h4 class="card-title mb-0">لیست رزرو ها</h4>

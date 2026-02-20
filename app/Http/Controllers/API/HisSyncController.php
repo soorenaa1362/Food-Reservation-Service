@@ -8,8 +8,6 @@ use App\Services\Sync\SyncCentersService;
 use App\Services\Sync\SyncMenusService;
 use App\Services\Sync\SyncUsersService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class HisSyncController extends Controller

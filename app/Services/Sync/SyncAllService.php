@@ -2,14 +2,8 @@
 
 namespace App\Services\Sync;
 
-use App\Models\Meal;
-use App\Models\User;
-use App\Models\Center;
-use App\Models\MealItem;
-use App\Models\CreditCard;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Crypt;
 use App\Services\Sync\SyncMenusService;
 use App\Services\Sync\SyncUsersService;
 use App\Services\Sync\SyncCentersService;

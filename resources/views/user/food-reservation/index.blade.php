@@ -32,6 +32,29 @@
         .shadow-z-2 {
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
+
+        /* استایل برای روزهایی که غذایی ندارند (هاشور زده) */
+        .food-cell-empty {
+            background-color: #f8f9fa; /* رنگ پس‌زمینه خیلی روشن */
+            /* ایجاد خطوط مورب (هاشور) */
+            background-image: repeating-linear-gradient(
+                45deg,
+                #f8f9fa,
+                #f8f9fa 10px,
+                #dee2e6 10px,
+                #dee2e6 20px
+            );
+            color: #adb5bd; /* رنگ متن‌ها کاملاً خاکستری */
+            text-align: center;
+            vertical-align: middle;
+            font-style: italic; /* متن‌ها اگر بودند مورب باشند */
+            letter-spacing: 2px;
+        }
+
+        /* اطمینان از اینکه سطرها خیلی کمرنگ نمی‌شوند */
+        .reservation-row {
+            transition: all 0.3s;
+        }
     </style>
 
     {{-- modal-css --}}
@@ -138,15 +161,26 @@
                                 </thead>
 
                                 <tbody>
-                                    @foreach ($days as $dayIndex => $day)
-                                        <tr class="reservation-row disabled-row">
-                                            <td>
-                                                <input type="checkbox" class="form-check-input toggle-row">
-                                                <!-- این hidden تاریخ میلادی خالص رو نگه می‌داره (اصلاح بدون تغییر) -->
+                                    @forelse ($days as $dayIndex => $day)
+                                        @php
+                                            // چک میکنیم آیا این روز غذایی دارد یا خیر
+                                            $hasAnyFood = !empty($day['breakfast']) || !empty($day['lunch']) || !empty($day['dinner']);
+                                            
+                                            // کلاس سطر
+                                            $rowClass = $hasAnyFood ? 'reservation-row disabled-row' : 'reservation-row';
+                                            // وضعیت چک‌باکس
+                                            $checkboxState = $hasAnyFood ? '' : 'disabled';
+                                            // کلاس سلول‌های غذا (اگر غذایی نبود، هاشور بخوره)
+                                            $cellClass = $hasAnyFood ? '' : 'food-cell-empty';
+                                        @endphp
+
+                                        <tr class="{{ $rowClass }}">
+                                            <td style="vertical-align: middle;">
+                                                <input type="checkbox" class="form-check-input toggle-row" {{ $checkboxState }}>
                                                 <input type="hidden" name="dates[{{ $dayIndex }}]" value="{{ $day['date'] }}" class="miladi-date">
                                             </td>
 
-                                            <td>
+                                            <td style="vertical-align: middle; opacity: {{ $hasAnyFood ? 1 : 0.5 }};">
                                                 {{ \Morilog\Jalali\Jalalian::fromDateTime($day['date'])->format('Y/m/d') }}
                                                 <br>
                                                 <small class="text-muted">
@@ -155,106 +189,126 @@
                                             </td>
 
                                             {{-- صبحانه --}}
-                                            <td>
-                                                @foreach ($day['breakfast'] as $foodIndex => $food)
-                                                    @if($food['deadline_passed'] ?? false)
-                                                        <div class="text-center p-3 bg-light border rounded">
-                                                            <small class="text-danger font-weight-bold">
-                                                                <i class="fa fa-clock-o mr-1"></i>
-                                                                {{ $food['message'] }}
-                                                            </small>
-                                                        </div>
-                                                    @else
-                                                        <div class="mb-1">
-                                                            {{ $food['food_name'] }} ({{ number_format($food['price']) }})
-                                                            <input type="hidden" name="breakfast[{{ $dayIndex }}][{{ $foodIndex }}][food_name]" value="{{ $food['food_name'] }}">
-                                                            <input type="hidden" name="breakfast[{{ $dayIndex }}][{{ $foodIndex }}][price]" value="{{ $food['price'] }}">
-                                                            <input type="number"
-                                                                name="breakfast[{{ $dayIndex }}][{{ $foodIndex }}][quantity]"
-                                                                value="0"
-                                                                min="0"
-                                                                max="{{ $food['available_portions'] }}"
-                                                                class="form-control form-control-sm d-inline-block meal-input"
-                                                                style="width:60px;"
-                                                                {{ !$food['is_reservable'] ? 'disabled' : '' }}>
-                                                            <small class="text-muted">/ {{ $food['available_portions'] }}</small>
-                                                        </div>
-                                                    @endif
-                                                @endforeach
+                                            <td class="{{ $cellClass }}">
+                                                @if($hasAnyFood && !empty($day['breakfast']))
+                                                    @foreach ($day['breakfast'] as $foodIndex => $food)
+                                                        @if($food['deadline_passed'] ?? false)
+                                                            <div class="text-center p-3 bg-light border rounded">
+                                                                <small class="text-danger font-weight-bold">
+                                                                    <i class="fa fa-clock-o mr-1"></i>
+                                                                    {{ $food['message'] }}
+                                                                </small>
+                                                            </div>
+                                                        @else
+                                                            <div class="mb-1">
+                                                                {{ $food['food_name'] }} ({{ number_format($food['price']) }})
+                                                                <input type="hidden" name="breakfast[{{ $dayIndex }}][{{ $foodIndex }}][food_name]" value="{{ $food['food_name'] }}">
+                                                                <input type="hidden" name="breakfast[{{ $dayIndex }}][{{ $foodIndex }}][price]" value="{{ $food['price'] }}">
+                                                                <input type="number"
+                                                                    name="breakfast[{{ $dayIndex }}][{{ $foodIndex }}][quantity]"
+                                                                    value="0"
+                                                                    min="0"
+                                                                    max="{{ $food['available_portions'] }}"
+                                                                    class="form-control form-control-sm d-inline-block meal-input"
+                                                                    style="width:60px;"
+                                                                    {{ !$food['is_reservable'] ? 'disabled' : '' }}>
+                                                                <small class="text-muted">/ {{ $food['available_portions'] }}</small>
+                                                            </div>
+                                                        @endif
+                                                    @endforeach
+                                                @else
+                                                    {{-- اگه غذایی نیست، یه کاراکتر فضایی یا نقطه می‌ذاریم که ارتفاع سلول حفظ بشه و هاشور دیده بشه --}}
+                                                    <span>&bull;</span>
+                                                @endif
                                             </td>
 
                                             {{-- ناهار --}}
-                                            <td>
-                                                @foreach ($day['lunch'] as $foodIndex => $food)
-                                                    @if($food['deadline_passed'] ?? false)
-                                                        <div class="text-center p-3 bg-light border rounded">
-                                                            <small class="text-danger font-weight-bold">
-                                                                <i class="fa fa-clock-o mr-1"></i>
-                                                                {{ $food['message'] }}
-                                                            </small>
-                                                        </div>
-                                                    @else
-                                                        <div class="mb-1">
-                                                            {{ $food['food_name'] }} ({{ number_format($food['price']) }})
-                                                            <input type="hidden" name="lunch[{{ $dayIndex }}][{{ $foodIndex }}][food_name]" value="{{ $food['food_name'] }}">
-                                                            <input type="hidden" name="lunch[{{ $dayIndex }}][{{ $foodIndex }}][price]" value="{{ $food['price'] }}">
-                                                            <input type="number"
-                                                                name="lunch[{{ $dayIndex }}][{{ $foodIndex }}][quantity]"
-                                                                value="0"
-                                                                min="0"
-                                                                max="{{ $food['available_portions'] }}"
-                                                                class="form-control form-control-sm d-inline-block meal-input"
-                                                                style="width:60px;"
-                                                                {{ !$food['is_reservable'] ? 'disabled' : '' }}>
-                                                            <small class="text-muted">/ {{ $food['available_portions'] }}</small>
-                                                        </div>
-                                                    @endif
-                                                @endforeach
+                                            <td class="{{ $cellClass }}">
+                                                @if($hasAnyFood && !empty($day['lunch']))
+                                                    @foreach ($day['lunch'] as $foodIndex => $food)
+                                                        @if($food['deadline_passed'] ?? false)
+                                                            <div class="text-center p-3 bg-light border rounded">
+                                                                <small class="text-danger font-weight-bold">
+                                                                    <i class="fa fa-clock-o mr-1"></i>
+                                                                    {{ $food['message'] }}
+                                                                </small>
+                                                            </div>
+                                                        @else
+                                                            <div class="mb-1">
+                                                                {{ $food['food_name'] }} ({{ number_format($food['price']) }})
+                                                                <input type="hidden" name="lunch[{{ $dayIndex }}][{{ $foodIndex }}][food_name]" value="{{ $food['food_name'] }}">
+                                                                <input type="hidden" name="lunch[{{ $dayIndex }}][{{ $foodIndex }}][price]" value="{{ $food['price'] }}">
+                                                                <input type="number"
+                                                                    name="lunch[{{ $dayIndex }}][{{ $foodIndex }}][quantity]"
+                                                                    value="0"
+                                                                    min="0"
+                                                                    max="{{ $food['available_portions'] }}"
+                                                                    class="form-control form-control-sm d-inline-block meal-input"
+                                                                    style="width:60px;"
+                                                                    {{ !$food['is_reservable'] ? 'disabled' : '' }}>
+                                                                <small class="text-muted">/ {{ $food['available_portions'] }}</small>
+                                                            </div>
+                                                        @endif
+                                                    @endforeach
+                                                @else
+                                                    <span>&bull;</span>
+                                                @endif
                                             </td>
 
                                             {{-- شام --}}
-                                            <td>
-                                                @foreach ($day['dinner'] as $foodIndex => $food)
-                                                    @if($food['deadline_passed'] ?? false)
-                                                        <div class="text-center p-3 bg-light border rounded">
-                                                            <small class="text-danger font-weight-bold">
-                                                                <i class="fa fa-clock-o mr-1"></i>
-                                                                {{ $food['message'] }}
-                                                            </small>
-                                                        </div>
-                                                    @else
-                                                        <div class="mb-1">
-                                                            {{ $food['food_name'] }} ({{ number_format($food['price']) }})
-                                                            <input type="hidden" name="dinner[{{ $dayIndex }}][{{ $foodIndex }}][food_name]" value="{{ $food['food_name'] }}">
-                                                            <input type="hidden" name="dinner[{{ $dayIndex }}][{{ $foodIndex }}][price]" value="{{ $food['price'] }}">
-                                                            <input type="number"
-                                                                name="dinner[{{ $dayIndex }}][{{ $foodIndex }}][quantity]"
-                                                                value="0"
-                                                                min="0"
-                                                                max="{{ $food['available_portions'] }}"
-                                                                class="form-control form-control-sm d-inline-block meal-input"
-                                                                style="width:60px;"
-                                                                {{ !$food['is_reservable'] ? 'disabled' : '' }}>
-                                                            <small class="text-muted">/ {{ $food['available_portions'] }}</small>
-                                                        </div>
-                                                    @endif
-                                                @endforeach
+                                            <td class="{{ $cellClass }}">
+                                                @if($hasAnyFood && !empty($day['dinner']))
+                                                    @foreach ($day['dinner'] as $foodIndex => $food)
+                                                        @if($food['deadline_passed'] ?? false)
+                                                            <div class="text-center p-3 bg-light border rounded">
+                                                                <small class="text-danger font-weight-bold">
+                                                                    <i class="fa fa-clock-o mr-1"></i>
+                                                                    {{ $food['message'] }}
+                                                                </small>
+                                                            </div>
+                                                        @else
+                                                            <div class="mb-1">
+                                                                {{ $food['food_name'] }} ({{ number_format($food['price']) }})
+                                                                <input type="hidden" name="dinner[{{ $dayIndex }}][{{ $foodIndex }}][food_name]" value="{{ $food['food_name'] }}">
+                                                                <input type="hidden" name="dinner[{{ $dayIndex }}][{{ $foodIndex }}][price]" value="{{ $food['price'] }}">
+                                                                <input type="number"
+                                                                    name="dinner[{{ $dayIndex }}][{{ $foodIndex }}][quantity]"
+                                                                    value="0"
+                                                                    min="0"
+                                                                    max="{{ $food['available_portions'] }}"
+                                                                    class="form-control form-control-sm d-inline-block meal-input"
+                                                                    style="width:60px;"
+                                                                    {{ !$food['is_reservable'] ? 'disabled' : '' }}>
+                                                                <small class="text-muted">/ {{ $food['available_portions'] }}</small>
+                                                            </div>
+                                                        @endif
+                                                    @endforeach
+                                                @else
+                                                    <span>&bull;</span>
+                                                @endif
                                             </td>
                                         </tr>
-                                    @endforeach
+                                    @empty
+                                        <tr>
+                                            <td colspan="5" class="text-muted text-info font-medium-2 p-4">برای این مرکز هنوز هیچ منوی غذایی ثبت نشده است.</td>
+                                        </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
 
-                            <div class="text-center">
-                                <button type="button"
+                            @if (!empty($days))                                                        
+                                <div class="text-center">
+                                    <button type="button"
                                         class="btn btn-success btn-lg px-4 shadow-z-2"
                                         id="sendToCartBtn"
                                         data-toggle="modal"
                                         data-target="#sendToCart"
-                                        disabled>
-                                    ثبت رزرو
-                                </button>
-                            </div>
+                                        disabled
+                                    >
+                                        ثبت رزرو
+                                    </button>
+                                </div>
+                            @endif
                         </form>
 
                     @else
@@ -288,127 +342,157 @@
     <script src="{{ asset('adminto/sweetalert2/sweetalert2.min.js') }}"></script>
 
     <script>
+        // ────────────────────────────────────────────────
+        // بخش ۱: وقتی صفحه لود شد، همه چیز رو آماده کن
+        // ────────────────────────────────────────────────
         document.addEventListener("DOMContentLoaded", function () {
-            const sendToCartBtn = document.getElementById('sendToCartBtn');
-            const cartModal = new bootstrap.Modal(document.getElementById('sendToCart'));
-            const submitBtn = document.getElementById('submitBtn');
-            const totalAmountEl = document.getElementById('total-amount');
-            const grandTotalEl = document.getElementById('grand-total');
-            const cartItemsTbody = document.getElementById('cart-items-tbody');
-            const cartItemsContainer = document.getElementById('cart-items-container');
-            const emptySelection = document.getElementById('empty-selection');
 
+            const sendToCartBtn   = document.getElementById('sendToCartBtn');
+            const cartModal       = new bootstrap.Modal(document.getElementById('sendToCart'));
+            const submitBtn       = document.getElementById('submitBtn');
+            const totalAmountEl   = document.getElementById('total-amount');
+            const grandTotalEl    = document.getElementById('grand-total');
+            const cartItemsTbody  = document.getElementById('cart-items-tbody');
+            const cartItemsContainer = document.getElementById('cart-items-container');
+            const emptySelection  = document.getElementById('empty-selection');
+
+            // ────────────────────────────────────────────────
+            // تابع: فعال/غیرفعال کردن دکمه ثبت رزرو
+            // ────────────────────────────────────────────────
             function updateSubmitButton() {
-                const anyValidSelection = Array.from(document.querySelectorAll('.reservation-row')).some(row => {
+                const anyValid = Array.from(document.querySelectorAll('.reservation-row')).some(row => {
                     const checkbox = row.querySelector('.toggle-row');
-                    if (checkbox.checked) {
-                        const inputs = row.querySelectorAll('.meal-input');
-                        return Array.from(inputs).some(input => parseInt(input.value) > 0);
-                    }
-                    return false;
+                    if (!checkbox.checked) return false;
+
+                    const inputs = row.querySelectorAll('.meal-input');
+                    return Array.from(inputs).some(input => parseInt(input.value) > 0);
                 });
-                sendToCartBtn.disabled = !anyValidSelection;
+
+                sendToCartBtn.disabled = !anyValid;
             }
 
-            // فعال/غیرفعال کردن ردیف با چک‌باکس
-            document.querySelectorAll(".toggle-row").forEach(function (checkbox) {
+            // ────────────────────────────────────────────────
+            // تابع: مدیریت وضعیت یک ردیف (تیک خورده یا نخورده)
+            // ────────────────────────────────────────────────
+            function toggleRow(row, shouldEnable) {
+                const inputs = row.querySelectorAll('.meal-input');
+
+                if (shouldEnable) {
+                    row.classList.remove('disabled-row');
+                    row.classList.add('enabled-row');
+                    inputs.forEach(input => input.disabled = false);
+                } else {
+                    row.classList.remove('enabled-row');
+                    row.classList.add('disabled-row');
+                    inputs.forEach(input => {
+                        input.disabled = true;
+                        input.value = '0';          // مهم: صفر کردن مقدار
+                    });
+                }
+            }
+
+            // ────────────────────────────────────────────────
+            // بخش ۲: مدیریت چک‌باکس‌ها (تیک زدن / برداشتن)
+            // ────────────────────────────────────────────────
+            document.querySelectorAll(".toggle-row").forEach(checkbox => {
+                // وضعیت اولیه هر ردیف رو درست ست کن
+                const row = checkbox.closest(".reservation-row");
+                toggleRow(row, checkbox.checked);
+
+                // رویداد تغییر تیک
                 checkbox.addEventListener("change", function () {
-                    let row = this.closest(".reservation-row");
-                    let inputs = row.querySelectorAll(".meal-input");
-                    if (this.checked) {
-                        row.classList.remove("disabled-row");
-                        row.classList.add("enabled-row");
-                        inputs.forEach(input => input.disabled = false);
-                    } else {
-                        row.classList.remove("enabled-row");
-                        row.classList.add("disabled-row");
-                        inputs.forEach(input => {
-                            input.disabled = true;
-                            input.value = 0;
-                        });
+                    toggleRow(row, this.checked);
+                    updateSubmitButton();
+                });
+            });
+
+            // ────────────────────────────────────────────────
+            // بخش ۳: وقتی تعداد غذا تغییر کرد، دکمه رو چک کن
+            // ────────────────────────────────────────────────
+            document.querySelectorAll(".meal-input").forEach(input => {
+                input.addEventListener("input", function () {
+                    // جلوگیری از مقادیر نامعتبر
+                    if (this.value < 0) this.value = 0;
+                    if (this.max && this.value > parseInt(this.max)) {
+                        this.value = this.max;
                     }
                     updateSubmitButton();
                 });
             });
 
-            // بروزرسانی دکمه وقتی تعداد تغییر کرد
-            document.querySelectorAll(".meal-input").forEach(function (input) {
-                input.addEventListener("input", function () {
-                    updateSubmitButton();
-                });
-            });
-
-            // باز کردن مودال
+            // ────────────────────────────────────────────────
+            // بخش ۴: کلیک روی دکمه → باز کردن مودال + ساخت پیش‌نمایش
+            // ────────────────────────────────────────────────
             sendToCartBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 generateCartPreview();
                 cartModal.show();
             });
 
-            // تولید پیش‌نمایش سبد خرید
+            // ────────────────────────────────────────────────
+            // تابع: ساخت محتوای جدول داخل مودال سبد خرید
+            // ────────────────────────────────────────────────
             function generateCartPreview() {
                 let total = 0;
                 let rowCounter = 1;
                 cartItemsTbody.innerHTML = '';
+
                 const modalForm = document.getElementById('sendToCartModal');
-                const existingHiddenInputs = modalForm.querySelectorAll('input[name^="cart_items"]');
-                existingHiddenInputs.forEach(input => input.remove());
+                // پاک کردن hiddenهای قبلی
+                modalForm.querySelectorAll('input[name^="cart_items"]').forEach(el => el.remove());
 
                 document.querySelectorAll('.reservation-row').forEach((row, dayIndex) => {
                     const checkbox = row.querySelector('.toggle-row');
                     if (!checkbox.checked) return;
 
-                    // گرفتن تاریخ میلادی خالص از hidden
                     const dateInput = row.querySelector('.miladi-date');
-                    const dateValue = dateInput ? dateInput.value : ''; // مثال: 2026-01-03
-
-                    // برای نمایش در مودال: تبدیل تقریبی به شمسی (اختیاری - می‌تونی حذف کنی)
+                    const dateValue = dateInput ? dateInput.value : '';
                     const displayDate = miladiToShamsi(dateValue);
 
-                    // تابع مشترک برای اضافه کردن آیتم (صبحانه، ناهار، شام)
                     function processMeal(mealType, mealFa) {
                         const inputs = row.querySelectorAll(`input[name^="${mealType}"][name*="quantity"]`);
                         inputs.forEach((input, foodIndex) => {
-                            const quantity = parseInt(input.value);
-                            if (quantity > 0) {
-                                const foodNameInput = input.closest('.mb-1').querySelector('input[name*="[food_name]"]');
-                                const priceInput = input.closest('.mb-1').querySelector('input[name*="[price]"]');
-                                const foodName = foodNameInput ? foodNameInput.value : '';
-                                const price = parseInt(priceInput ? priceInput.value : 0);
-                                const lineTotal = price * quantity;
+                            const quantity = parseInt(input.value) || 0;
+                            if (quantity <= 0) return;
 
-                                // اضافه کردن به جدول مودال
-                                const rowHtml = `
-                                    <tr>
-                                        <th scope="row">${rowCounter++}</th>
-                                        <td>${displayDate}</td>
-                                        <td>${foodName}</td>
-                                        <td>${mealFa}</td>
-                                        <td>${quantity}</td>
-                                        <td>${number_format(price)} تومان</td>
-                                        <td class="text-success font-weight-bold">${number_format(lineTotal)} تومان</td>
-                                    </tr>
-                                `;
-                                cartItemsTbody.innerHTML += rowHtml;
-                                total += lineTotal;
+                            const foodNameInput = input.closest('.mb-1').querySelector('input[name*="[food_name]"]');
+                            const priceInput    = input.closest('.mb-1').querySelector('input[name*="[price]"]');
 
-                                // اضافه کردن hidden input به فرم مودال (تاریخ میلادی!)
-                                addHiddenInputToModal(modalForm, dayIndex, foodIndex, mealType, foodName, price, quantity, dateValue);
-                            }
+                            const foodName = foodNameInput ? foodNameInput.value : '';
+                            const price    = parseInt(priceInput ? priceInput.value : 0);
+                            const lineTotal = price * quantity;
+
+                            // ردیف جدول مودال
+                            cartItemsTbody.innerHTML += `
+                                <tr>
+                                    <th scope="row">${rowCounter++}</th>
+                                    <td>${displayDate}</td>
+                                    <td>${foodName}</td>
+                                    <td>${mealFa}</td>
+                                    <td>${quantity}</td>
+                                    <td>${number_format(price)} تومان</td>
+                                    <td class="text-success font-weight-bold">${number_format(lineTotal)} تومان</td>
+                                </tr>
+                            `;
+
+                            total += lineTotal;
+
+                            // اضافه کردن hidden به فرم مودال
+                            addHiddenInputToModal(modalForm, dayIndex, foodIndex, mealType, foodName, price, quantity, dateValue);
                         });
                     }
 
                     processMeal('breakfast', 'صبحانه');
-                    processMeal('lunch', 'ناهار');
-                    processMeal('dinner', 'شام');
+                    processMeal('lunch',     'ناهار');
+                    processMeal('dinner',    'شام');
                 });
 
-                // نمایش نتایج
+                // نمایش / مخفی کردن بخش‌ها
                 if (total > 0 && cartItemsTbody.children.length > 0) {
                     cartItemsContainer.classList.remove('d-none');
                     emptySelection.classList.add('d-none');
                     totalAmountEl.textContent = number_format(total) + ' تومان';
-                    grandTotalEl.textContent = number_format(total) + ' تومان';
+                    grandTotalEl.textContent  = number_format(total) + ' تومان';
                     submitBtn.disabled = false;
                 } else {
                     cartItemsContainer.classList.add('d-none');
@@ -417,64 +501,69 @@
                 }
             }
 
-            // اضافه کردن hidden inputها به فرم مودال
+            // ────────────────────────────────────────────────
+            // تابع کمکی: اضافه کردن hidden input به فرم مودال
+            // ────────────────────────────────────────────────
             function addHiddenInputToModal(form, dayIndex, foodIndex, mealType, foodName, price, quantity, date) {
-                const inputs = [
+                const fields = [
                     { name: `cart_items[${dayIndex}][${mealType}][${foodIndex}][food_name]`, value: foodName },
-                    { name: `cart_items[${dayIndex}][${mealType}][${foodIndex}][price]`, value: price },
-                    { name: `cart_items[${dayIndex}][${mealType}][${foodIndex}][quantity]`, value: quantity },
-                    { name: `cart_items[${dayIndex}][${mealType}][${foodIndex}][date]`, value: date }
+                    { name: `cart_items[${dayIndex}][${mealType}][${foodIndex}][price]`,     value: price },
+                    { name: `cart_items[${dayIndex}][${mealType}][${foodIndex}][quantity]`,  value: quantity },
+                    { name: `cart_items[${dayIndex}][${mealType}][${foodIndex}][date]`,      value: date }
                 ];
-                inputs.forEach(input => {
-                    const hiddenInput = document.createElement('input');
-                    hiddenInput.type = 'hidden';
-                    hiddenInput.name = input.name;
-                    hiddenInput.value = input.value;
-                    form.appendChild(hiddenInput);
+
+                fields.forEach(field => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = field.name;
+                    input.value = field.value;
+                    form.appendChild(input);
                 });
             }
 
-            // فرمت اعداد فارسی
-            function number_format(number) {
-                return new Intl.NumberFormat('fa-IR').format(number);
+            // ────────────────────────────────────────────────
+            // تابع: فرمت عدد به فارسی
+            // ────────────────────────────────────────────────
+            function number_format(num) {
+                return new Intl.NumberFormat('fa-IR').format(num);
             }
 
-            // تبدیل تقریبی میلادی به شمسی برای نمایش در مودال (اختیاری)
+            // ────────────────────────────────────────────────
+            // تابع: تبدیل تقریبی میلادی به شمسی (برای نمایش)
+            // ────────────────────────────────────────────────
             function miladiToShamsi(dateStr) {
                 if (!dateStr) return '';
                 const [gy, gm, gd] = dateStr.split('-').map(Number);
-
                 let jy = gy - 621;
                 let jm = gm - 3;
-                let jd = gd + 10; // تقریبی اولیه
+                let jd = gd + 10;
 
-                if (jm <= 0) {
-                    jm += 12;
-                    jy--;
-                }
+                if (jm <= 0) { jm += 12; jy--; }
 
-                // تنظیم دقیق برای سال کبیسه و ماه‌ها
-                const daysInMonth = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, (jy % 4 === 3 ? 30 : 29)];
+                const daysInMonth = [31,31,31,31,31,31,30,30,30,30,30, (jy % 4 === 3 ? 30 : 29)];
                 while (jd > daysInMonth[jm - 1]) {
                     jd -= daysInMonth[jm - 1];
                     jm++;
-                    if (jm > 12) {
-                        jm = 1;
-                        jy++;
-                    }
+                    if (jm > 12) { jm = 1; jy++; }
                 }
-
-                return `${jy}/${jm.toString().padStart(2, '0')}/${jd.toString().padStart(2, '0')}`;
+                return `${jy}/${jm.toString().padStart(2,'0')}/${jd.toString().padStart(2,'0')}`;
             }
 
-            // فعال کردن inputهای disabled قبل از ارسال فرم اصلی
+            // ────────────────────────────────────────────────
+            // قبل از submit فرم اصلی → مطمئن شو inputهای غیرفعال صفر بمونن
+            // ────────────────────────────────────────────────
             document.getElementById('foodReservationForm').addEventListener('submit', function() {
-                document.querySelectorAll('.meal-input').forEach(input => input.disabled = false);
+                document.querySelectorAll('.meal-input[disabled]').forEach(input => {
+                    input.value = '0';
+                });
             });
 
-            // بستن مودال
-            document.getElementById('cancelBtn').addEventListener('click', function() {
+            // ────────────────────────────────────────────────
+            // بستن مودال با دکمه cancel
+            // ────────────────────────────────────────────────
+            document.getElementById('cancelBtn')?.addEventListener('click', function() {
                 cartModal.hide();
+                location.reload();
             });
         });
     </script>

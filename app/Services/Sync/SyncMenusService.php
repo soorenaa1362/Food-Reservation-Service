@@ -2,15 +2,13 @@
 
 namespace App\Services\Sync;
 
-use Throwable;
-use App\Models\Meal;
-use App\Models\User;
 use App\Models\Center;
+use App\Models\Meal;
 use App\Models\MealItem;
-use App\Models\CreditCard;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Crypt;
+use RuntimeException;
 
 class SyncMenusService
 {
@@ -37,10 +35,12 @@ class SyncMenusService
 
                 if (!$center) continue;
 
-                $meal = Meal::updateOrCreate([
+                $meal = Meal::firstOrNew([
                     'center_id' => $center->id,
-                    'date' => $menu['date'],
+                    'date' => Carbon::parse($menu['date'])->toDateString(),
                 ]);
+
+                $meal->save();
 
                 foreach (['breakfast','lunch','dinner'] as $type) {
 
